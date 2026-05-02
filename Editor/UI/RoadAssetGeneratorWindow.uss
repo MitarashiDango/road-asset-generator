@@ -1,0 +1,274 @@
+/* RoadAssetGeneratorWindow.uss */
+
+#root-scroll {
+    flex-grow: 1;
+    padding: 8px;
+}
+
+.section {
+    margin-bottom: 8px;
+    padding: 6px;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.title {
+    font-size: 14px;
+    -unity-font-style: bold;
+    margin-bottom: 6px;
+}
+
+.row {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.row > * {
+    margin-right: 4px;
+}
+
+.row > *:last-child {
+    margin-right: 0;
+}
+
+.grow {
+    flex-grow: 1;
+}
+
+.bold {
+    -unity-font-style: bold;
+    margin-top: 4px;
+    margin-bottom: 2px;
+}
+
+.mini-label {
+    font-size: 10px;
+    color: rgba(170, 170, 170, 1);
+    margin-top: 4px;
+}
+
+.info {
+    margin-left: 6px;
+    margin-bottom: 4px;
+    font-size: 11px;
+    color: rgba(180, 180, 180, 1);
+}
+
+.preview {
+    height: 80px;
+    margin: 6px 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+}
+
+.indented {
+    margin-left: 8px;
+    margin-top: 4px;
+}
+
+Foldout {
+    margin-bottom: 6px;
+}
+
+.lane-row, .line-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 2px;
+    padding: 2px 0;
+}
+
+.lane-row TextField {
+    flex-grow: 1;
+    margin-right: 4px;
+}
+
+.lane-foldout-wrapper {
+    margin-bottom: 4px;
+}
+
+.lane-foldout-header {
+    flex-direction: row;
+    align-items: flex-start;
+    margin-bottom: 0;
+}
+
+.lane-foldout {
+    margin-bottom: 0;
+    padding: 4px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-left-width: 2px;
+    border-left-color: rgba(180, 220, 130, 0.5);
+    flex-grow: 1;
+}
+
+.lane-sub-section {
+    margin-left: 6px;
+    margin-top: 6px;
+    padding: 4px 6px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-left-width: 2px;
+    border-left-color: rgba(220, 180, 100, 0.5);
+}
+
+.line-foldout-wrapper {
+    margin-bottom: 4px;
+}
+
+.line-foldout-header {
+    flex-direction: row;
+    align-items: flex-start;
+    margin-bottom: 0;
+}
+
+.line-foldout {
+    margin-bottom: 0;
+    padding: 4px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-left-width: 2px;
+    border-left-color: rgba(120, 180, 255, 0.5);
+    flex-grow: 1;
+}
+
+.reorder-button {
+    width: 24px;
+    height: 20px;
+    margin-left: 2px;
+    margin-top: 2px;
+    -unity-text-align: middle-center;
+    font-size: 10px;
+}
+
+.temp-indicator {
+    margin-top: 4px;
+    margin-bottom: 4px;
+    padding: 4px 6px;
+    font-size: 11px;
+    color: rgba(230, 200, 130, 1);
+    background-color: rgba(180, 140, 50, 0.15);
+    border-left-width: 3px;
+    border-left-color: rgba(230, 180, 80, 0.8);
+    border-radius: 2px;
+    white-space: normal;
+}
+
+.line-foldout-style-section {
+    margin-top: 4px;
+    margin-left: 8px;
+}
+
+.remove-button {
+    width: 24px;
+    -unity-text-align: middle-center;
+}
+
+.footer {
+    margin-top: 12px;
+    margin-bottom: 8px;
+}
+
+Button.primary {
+    background-color: rgba(80, 165, 80, 1);
+    color: white;
+    -unity-font-style: bold;
+    height: 28px;
+}
+
+Button.primary:hover {
+    background-color: rgba(95, 195, 95, 1);
+}
+
+.albedo-preview {
+    width: 256px;
+    height: 256px;
+    align-self: center;
+    margin-top: 8px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-width: 1px;
+    border-color: rgba(80, 80, 80, 1);
+}
+
+.info-note {
+    margin: 4px 6px;
+    padding: 4px 6px;
+    font-size: 11px;
+    color: rgba(180, 200, 230, 1);
+    background-color: rgba(80, 110, 160, 0.15);
+    border-left-width: 3px;
+    border-left-color: rgba(120, 180, 255, 0.8);
+    border-radius: 2px;
+    white-space: normal;
+}
+
+HelpBox {
+    margin: 4px 0;
+}
+
+.strokes-container {
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+.stroke-wrapper {
+    margin-bottom: 4px;
+}
+
+.stroke-header {
+    flex-direction: row;
+    align-items: flex-start;
+    margin-bottom: 0;
+}
+
+.stroke-wrapper Foldout {
+    margin-bottom: 0;
+    padding: 3px 4px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-left-width: 2px;
+    border-left-color: rgba(160, 220, 200, 0.5);
+    flex-grow: 1;
+}
+
+.stroke-gap-row {
+    flex-direction: row;
+    align-items: center;
+    margin: 4px 12px;
+    padding: 2px 6px;
+    background-color: rgba(0, 0, 0, 0.10);
+    border-radius: 3px;
+}
+
+.stroke-gap-row > Label {
+    margin-right: 6px;
+    color: rgba(180, 180, 180, 1);
+    font-size: 11px;
+}
+
+.add-stroke-button {
+    margin-top: 4px;
+    margin-bottom: 4px;
+    margin-left: 8px;
+    align-self: flex-start;
+    padding: 2px 8px;
+    font-size: 11px;
+}
+
+.snap-fix-button {
+    margin-top: 2px;
+    margin-bottom: 4px;
+    align-self: flex-start;
+    padding: 2px 10px;
+    font-size: 11px;
+    background-color: rgba(80, 130, 180, 0.55);
+    color: white;
+}
+
+.snap-fix-button:hover {
+    background-color: rgba(95, 155, 210, 0.7);
+}
+
+.browse-button {
+    width: 30px;
+    margin-top: 0;
+    align-self: center;
+}

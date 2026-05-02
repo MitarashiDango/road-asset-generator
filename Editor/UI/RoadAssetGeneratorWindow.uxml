@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<engine:UXML xmlns:engine="UnityEngine.UIElements" xmlns:editor="UnityEditor.UIElements">
+
+  <Style src="RoadAssetGeneratorWindow.uss" />
+
+  <engine:ScrollView name="root-scroll" mode="Vertical">
+
+    <!-- Header / preset asset section -->
+    <engine:VisualElement class="section">
+      <engine:Label text="Road Asset Generator" class="title" />
+
+      <editor:ObjectField name="preset-field" label="Preset Asset" allow-scene-objects="false" />
+
+      <engine:Label name="temp-asset-indicator" text="● Using unsaved settings — click 'Save Current as New Preset' to keep them." class="temp-indicator" />
+
+      <engine:VisualElement class="row">
+        <engine:Button name="save-as-preset-button" text="Save Current as New Preset" class="grow" />
+        <engine:Button name="create-defaults-button" text="Create Built-in Presets" class="grow" />
+        <engine:Button name="reset-button" text="Reset to Default" class="grow" />
+      </engine:VisualElement>
+
+      <engine:Label text="Quick Apply (overwrites current):" class="mini-label" />
+      <engine:VisualElement class="row">
+        <engine:Button name="preset-no-overtaking" text="追越禁止" class="grow" />
+        <engine:Button name="preset-passing-ok"   text="追越可"   class="grow" />
+        <engine:Button name="preset-four-lane"    text="4車線"    class="grow" />
+      </engine:VisualElement>
+      <engine:VisualElement class="row">
+        <engine:Button name="preset-narrow"        text="1.5車線"  class="grow" />
+        <engine:Button name="preset-single-lane"   text="1車線"    class="grow" />
+        <engine:Button name="preset-no-markings"   text="車線なし" class="grow" />
+      </engine:VisualElement>
+    </engine:VisualElement>
+
+    <engine:Label name="info-label" class="info" />
+
+    <!-- Cross-section preview (IMGUI) -->
+    <engine:IMGUIContainer name="preview-container" class="preview" />
+
+    <!-- Output -->
+    <engine:Foldout name="output-foldout" text="Output" value="true">
+      <engine:VisualElement class="indented">
+        <engine:EnumField  label="Resolution"        binding-path="config.output.resolution" />
+        <engine:FloatField label="Tile Length (m)"   binding-path="config.output.textureLengthMeters" />
+        <engine:VisualElement class="row">
+          <engine:TextField label="Output Folder" binding-path="config.output.outputFolder" class="grow" />
+          <engine:Button name="output-folder-browse" text="..." class="browse-button" tooltip="Browse for an output folder inside the project (Assets/ or Packages/)." />
+        </engine:VisualElement>
+        <engine:TextField  label="Name Prefix"       binding-path="config.output.namePrefix" />
+        <engine:IntegerField label="Seed"            binding-path="config.output.seed" />
+        <engine:EnumField  label="Pipeline"          binding-path="config.output.pipelineTarget" />
+        <engine:VisualElement class="row">
+          <engine:Toggle label="Normal"        binding-path="config.output.generateNormal" />
+          <engine:Toggle label="MetalSmooth"   binding-path="config.output.generateMetallicSmoothness" />
+          <engine:Toggle label="AO"            binding-path="config.output.generateAO" />
+          <engine:Toggle label="Material"      binding-path="config.output.generateMaterial" />
+        </engine:VisualElement>
+      </engine:VisualElement>
+    </engine:Foldout>
+
+    <!-- Shoulders -->
+    <engine:Foldout name="shoulders-foldout" text="Shoulders (路側帯)" value="true">
+      <engine:VisualElement class="indented">
+        <engine:Label text="Left" class="bold" />
+        <engine:FloatField label="Width (m)"   binding-path="config.leftShoulder.widthMeters" />
+        <engine:Slider     label="Color Tint"  binding-path="config.leftShoulder.colorTint" low-value="-0.3" high-value="0.3" show-input-field="true" />
+        <engine:Label text="Right" class="bold" />
+        <engine:FloatField label="Width (m)"   binding-path="config.rightShoulder.widthMeters" />
+        <engine:Slider     label="Color Tint"  binding-path="config.rightShoulder.colorTint" low-value="-0.3" high-value="0.3" show-input-field="true" />
+      </engine:VisualElement>
+    </engine:Foldout>
+
+    <!-- Lanes (rebuilt dynamically) -->
+    <engine:Foldout name="lanes-foldout" text="Lanes" value="true">
+      <engine:VisualElement name="lanes-container" class="indented" />
+      <engine:Button name="add-lane-button" text="+ Add Lane" />
+    </engine:Foldout>
+
+    <!-- Lines (rebuilt dynamically; auto-synced to lanes) -->
+    <engine:Foldout name="lines-foldout" text="Boundary Lines" value="true">
+      <engine:Label text="Auto-managed. Count = Lanes + 1." class="info-note" />
+      <engine:VisualElement name="lines-container" class="indented" />
+    </engine:Foldout>
+
+    <!-- Asphalt -->
+    <engine:Foldout name="asphalt-foldout" text="Asphalt (路面)" value="true">
+      <engine:VisualElement class="indented">
+        <editor:ColorField label="Base Color"      binding-path="config.asphalt.baseColor" />
+        <engine:EnumField  label="Noise Style"     binding-path="config.asphalt.noiseStyle" />
+        <engine:Slider     label="Noise Intensity" binding-path="config.asphalt.noiseIntensity" low-value="0" high-value="2" show-input-field="true" />
+        <engine:Slider     label="Bright Specks"   binding-path="config.asphalt.brightSpeckAmount" low-value="0" high-value="0.05" show-input-field="true" />
+        <engine:Slider     label="Dark Specks"     binding-path="config.asphalt.darkSpeckAmount" low-value="0" high-value="0.05" show-input-field="true" />
+      </engine:VisualElement>
+    </engine:Foldout>
+
+    <!-- Weathering -->
+    <engine:Foldout name="weathering-foldout" text="Weathering" value="true">
+      <engine:VisualElement class="indented">
+        <engine:Slider label="Line Edge Wear"   binding-path="config.weathering.lineWear"        low-value="0" high-value="1" show-input-field="true" tooltip="Reduces paint thickness in normal map (1 = fully worn / flat) and adds edge color noise." />
+        <engine:Slider label="Line Fade"        binding-path="config.weathering.lineFade"        low-value="0" high-value="1" show-input-field="true" />
+        <engine:Slider label="Tire Track Wear"  binding-path="config.weathering.tireTrackWear"  low-value="0" high-value="1" show-input-field="true" />
+        <engine:Slider label="Paint Height Strength" binding-path="config.weathering.paintHeightStrength" low-value="0" high-value="3" show-input-field="true" tooltip="Global multiplier on painted-marking height contribution to the normal map. 0 = no raised paint, 1 = standard thickness, higher = thicker." />
+        <engine:Toggle label="Repair Patches"   binding-path="config.weathering.repairPatches" />
+        <engine:SliderInt label="Patch Count"   binding-path="config.weathering.repairPatchCount" low-value="1" high-value="8" show-input-field="true" />
+        <engine:Toggle label="Wet Surface"      binding-path="config.weathering.wetSurface" />
+      </engine:VisualElement>
+    </engine:Foldout>
+
+    <!-- Footer / generate -->
+    <engine:VisualElement class="row footer">
+      <engine:Button name="refresh-preview-button" text="Refresh Preview" class="grow" />
+      <engine:Button name="generate-button"        text="Generate Textures + Material" class="grow primary" />
+    </engine:VisualElement>
+
+    <!-- Albedo preview thumbnail (manual repaint) -->
+    <engine:Image name="albedo-preview" class="albedo-preview" />
+
+  </engine:ScrollView>
+</engine:UXML>
