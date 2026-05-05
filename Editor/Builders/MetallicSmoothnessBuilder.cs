@@ -5,7 +5,7 @@ namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
     /// Metallic / Smoothness パックマップを構築する。RGB = 0(非メタリック)、A = smoothness。
-    /// 塗装マーク(減速マークと線 stroke)はアスファルトより滑らかにスタンプする。
+    /// 塗装マーク(路面凹凸舗装と線 stroke)はアスファルトより滑らかにスタンプする。
     /// </summary>
     internal static class MetallicSmoothnessBuilder
     {
@@ -27,7 +27,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 pixels[i] = new Color32(0, 0, 0, (byte)v);
             }
 
-            // 塗装マーク(減速マークと線 stroke)はアスファルトより滑らか。
+            // 塗装マーク(路面凹凸舗装と線 stroke)はアスファルトより滑らか。
             var lineSmooth = config.weathering.wetSurface ? (byte)220 : (byte)110;
 
             for (var li = 0; li < config.lanes.Count; li++)

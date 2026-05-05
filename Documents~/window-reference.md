@@ -8,7 +8,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 - [Shoulders (路側帯)](#shoulders-路側帯)
 - [Lanes](#lanes)
   - [Surface Tint (路面色)](#surface-tint-路面色)
-  - [Rumble Strips (減速マーク)](#rumble-strips-減速マーク)
+  - [Rumble Strips (路面凹凸舗装)](#rumble-strips-路面凹凸舗装)
   - [Speed Reduction Dot Line (減速ドットライン)](#speed-reduction-dot-line-減速ドットライン)
 - [Boundary Lines](#boundary-lines)
 - [Asphalt (路面)](#asphalt-路面)
@@ -84,7 +84,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 1. 基本設定 (Label / Width / Direction)
 2. [Surface Tint (路面色)](#surface-tint-路面色)
-3. [Rumble Strips (減速マーク)](#rumble-strips-減速マーク)
+3. [Rumble Strips (路面凹凸舗装)](#rumble-strips-路面凹凸舗装)
 4. [Speed Reduction Dot Line (減速ドットライン)](#speed-reduction-dot-line-減速ドットライン)
 
 ### Label
@@ -124,9 +124,9 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 ---
 
-### Rumble Strips (減速マーク)
+### Rumble Strips (路面凹凸舗装)
 
-車線端に並ぶ V 軸方向の帯状減速マーク。
+車線端に並ぶ V 軸方向の帯状凹凸舗装。走行時の振動で車線逸脱を警告する。
 
 #### Enable
 

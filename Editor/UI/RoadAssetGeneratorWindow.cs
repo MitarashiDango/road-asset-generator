@@ -310,7 +310,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
         private void BuildLaneRumbleSection(Foldout parent, SerializedProperty laneProp)
         {
-            var section = NewLaneSubSection("Rumble Strips (減速マーク)");
+            var section = NewLaneSubSection("Rumble Strips (路面凹凸舗装)");
 
             var enableToggle = new Toggle("Enable");
             enableToggle.BindProperty(laneProp.FindPropertyRelative("rumbleStrip"));
@@ -745,7 +745,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // spacing をスナップして同時に offset を再センタリングし、パターンがタイル内で対称になるようにする。
-        // 3 つの「Snap & center」ボタン(Dashed / Diamond の LineStyle、減速マーク、レーン山形マーカー)から
+        // 3 つの「Snap & center」ボタン(Dashed / Diamond の LineStyle、路面凹凸舗装、レーン山形マーカー)から
         // 共有される。
         private static void SnapAndCenter(SerializedProperty sizeProp, SerializedProperty spacingProp, SerializedProperty offsetProp, float tileLength, float minSpacing)
         {
