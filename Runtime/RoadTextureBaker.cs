@@ -19,25 +19,8 @@ namespace MitarashiDango.RoadAssetGenerator
     {
         public int xCenter;
         public int halfWidthPx;
-        public LineType type;
+        public IMarkingShape shape;
         public Color color;
-        public float dashLengthPx;
-        public float dashGapPx;
-        public float dashOffsetPx;
-
-        // Diamond 専用:V 軸方向に繰り返されるシアー長方形。
-        public float diamondSizePx;
-        public float diamondSpacingPx;
-
-        /// <summary>
-        /// slant の符号付き量。意味は <see cref="diamondShearAlongV"/> によって変わる:
-        /// X-shear = 上端と下端の U 軸オフセット(上/下が水平、左/右が斜めになる)。
-        /// Y-shear = 左列と右列の V 軸オフセット(左/右が垂直、上/下が斜めになる)。
-        /// </summary>
-        public float diamondSlantPx;
-        public bool diamondShearAlongV;
-
-        // この stroke が高さマップに与えるペイント厚みの倍率。
         public float paintHeightFactor;
         public int seed;
     }
@@ -208,20 +191,40 @@ namespace MitarashiDango.RoadAssetGenerator
             {
                 return;
             }
+
             var xCenter = Mathf.RoundToInt(xMeters * pxPerMx);
             var halfW = Mathf.Max(1, Mathf.RoundToInt(style.widthMeters * pxPerMx * 0.5f));
+
+            IMarkingShape shape;
+            switch (style.type)
+            {
+                case LineType.Solid:
+                    shape = SolidShape.Instance;
+                    break;
+                case LineType.Dashed:
+                    shape = new MarkingPattern(
+                        RectanglePrimitive.Instance,
+                        style.dashLengthMeters * pxPerMy,
+                        style.dashGapMeters * pxPerMy,
+                        style.dashOffsetMeters * pxPerMy);
+                    break;
+                case LineType.Diamond:
+                    var shearNorm = (style.diamondSlantMeters * pxPerMx) / halfW;
+                    shape = new MarkingPattern(
+                        new ParallelogramPrimitive(shearNorm),
+                        style.diamondSizeMeters * pxPerMy,
+                        style.diamondSpacingMeters * pxPerMy,
+                        style.dashOffsetMeters * pxPerMy);
+                    break;
+                default:
+                    return;
+            }
             strokes.Add(new LineStroke
             {
                 xCenter = xCenter,
                 halfWidthPx = halfW,
-                type = style.type,
+                shape = shape,
                 color = style.color,
-                dashLengthPx = style.dashLengthMeters * pxPerMy,
-                dashGapPx = style.dashGapMeters * pxPerMy,
-                dashOffsetPx = style.dashOffsetMeters * pxPerMy,
-                diamondSizePx = style.diamondSizeMeters * pxPerMy,
-                diamondSpacingPx = style.diamondSpacingMeters * pxPerMy,
-                diamondSlantPx = style.diamondSlantMeters * pxPerMx,
                 paintHeightFactor = style.paintHeightFactor,
                 seed = seedCounter++,
             });
@@ -283,143 +286,36 @@ namespace MitarashiDango.RoadAssetGenerator
             {
                 xCenter = xCenter,
                 halfWidthPx = halfW,
-                type = LineType.Diamond,
+                shape = new MarkingPattern(
+                    RectanglePrimitive.Instance,
+                    lane.speedReductionDotLineHeightMeters * pxPerMy,
+                    lane.speedReductionDotLineSpacingMeters * pxPerMy,
+                    lane.speedReductionDotLineStartOffsetMeters * pxPerMy,
+                    lane.speedReductionDotLineSlantMeters * slantSign * directionSign * pxPerMy),
                 color = lane.speedReductionDotLineColor,
-                dashOffsetPx = lane.speedReductionDotLineStartOffsetMeters * pxPerMy,
-                diamondSizePx = lane.speedReductionDotLineHeightMeters * pxPerMy,
-                diamondSpacingPx = lane.speedReductionDotLineSpacingMeters * pxPerMy,
-                // Y-shear は V 軸方向のオフセットなので pxPerMy で換算する。slantSign は右側 stroke を
-                // ミラーし、directionSign は Backward レーンを反転して、ドットが進行方向に倣うようにする。
-                diamondSlantPx = lane.speedReductionDotLineSlantMeters * slantSign * directionSign * pxPerMy,
-                diamondShearAlongV = true,
                 paintHeightFactor = lane.speedReductionDotLinePaintHeightFactor,
                 seed = seedCounter++,
             });
         }
 
-        // X-shear Diamond の傾いた角を覆うために必要な X 軸方向の追加マージン。Y-shear は U 範囲が
-        // 固定なのでマージン不要。
-        private static int GetSlantPad(in LineStroke s)
-        {
-            if (s.type != LineType.Diamond || s.diamondShearAlongV)
-            {
-                return 0;
-            }
-            return Mathf.CeilToInt(Mathf.Abs(s.diamondSlantPx) * 0.5f);
-        }
-
-        // 行 y が stroke s の塗装範囲を含むかを判定する。X-shear Diamond ではその行の中心軸シフト
-        // も返し、ピクセル単位の判定でシアー後の中心からの距離を比較できるようにする。Y-shear Diamond
-        // では V 周期の判定がカラム依存になるため、ここでは無条件に true を返してピクセル判定側で除外する。
-        private static bool RowOnStroke(in LineStroke s, int y, out float diamondCenterShift)
-        {
-            diamondCenterShift = 0f;
-            switch (s.type)
-            {
-                case LineType.Solid:
-                    return true;
-                case LineType.Dashed:
-                {
-                    var period = s.dashLengthPx + s.dashGapPx;
-                    if (period <= 0.5f)
-                    {
-                        return false;
-                    }
-                    var p = (y - s.dashOffsetPx) % period;
-                    if (p < 0)
-                    {
-                        p += period;
-                    }
-                    return p < s.dashLengthPx;
-                }
-                case LineType.Diamond:
-                {
-                    if (s.diamondShearAlongV)
-                    {
-                        return true;
-                    }
-                    var period = s.diamondSizePx + s.diamondSpacingPx;
-                    if (period <= 0.5f)
-                    {
-                        return false;
-                    }
-                    var p = (y - s.dashOffsetPx) % period;
-                    if (p < 0)
-                    {
-                        p += period;
-                    }
-                    if (p >= s.diamondSizePx)
-                    {
-                        return false;
-                    }
-                    var pNorm = p / s.diamondSizePx;
-                    diamondCenterShift = (pNorm - 0.5f) * s.diamondSlantPx;
-                    return true;
-                }
-                default:
-                    return false;
-            }
-        }
-
-        // ピクセル単位のヒットテスト。<paramref name="rowCenterShift"/> は RowOnStroke が返す値
-        // (X-shear Diamond の場合のみ非ゼロ)。<paramref name="duOut"/> は (シアー後の) 中心から
-        // の符号付き U 距離で、StampStrokes の縁ぼかし処理に利用される。
-        private static bool PixelOnStroke(in LineStroke s, int x, int y, float rowCenterShift, out float duOut)
-        {
-            if (s.type == LineType.Diamond && s.diamondShearAlongV)
-            {
-                duOut = x - s.xCenter;
-                if (Mathf.Abs(duOut) > s.halfWidthPx)
-                {
-                    return false;
-                }
-                var period = s.diamondSizePx + s.diamondSpacingPx;
-                if (period <= 0.5f)
-                {
-                    return false;
-                }
-                var uNorm = duOut / (float)s.halfWidthPx;
-                var shiftV = uNorm * 0.5f * s.diamondSlantPx;
-                var p = (y - s.dashOffsetPx - shiftV) % period;
-                if (p < 0)
-                {
-                    p += period;
-                }
-                return p < s.diamondSizePx;
-            }
-
-            duOut = (x - s.xCenter) - rowCenterShift;
-            if (s.type == LineType.Diamond)
-            {
-                return Mathf.Abs(duOut) <= s.halfWidthPx;
-            }
-            return true;
-        }
-
-        private static void GetStrokeXBounds(in LineStroke s, out int xStart, out int xEnd)
-        {
-            var slantPad = GetSlantPad(s);
-            xStart = s.xCenter - s.halfWidthPx - slantPad;
-            xEnd = s.xCenter + s.halfWidthPx + slantPad;
-            if (xEnd <= xStart)
-            {
-                xEnd = xStart + 1;
-            }
-        }
-
         // -----------------------------------------------------------------
         // ピクセル走査ヘルパー(stroke / rumble strip 共通)
         // -----------------------------------------------------------------
-        // ForEachStrokePixel のコールバック。xRange = (xStart, xEnd) を渡すことで、非 Diamond
-        // 系の stroke における「縁」ピクセル判定を呼び出し側で行えるようにする。
         private delegate void StrokePixelAction(int x, int y, int idx, float duFromCenter, int xStart, int xEnd);
 
         private static void ForEachStrokePixel(in LineStroke s, int W, int H, StrokePixelAction action)
         {
-            GetStrokeXBounds(s, out var xStart, out var xEnd);
+            var slantPad = s.shape.GetSlantPad(s.halfWidthPx);
+            var xStart = s.xCenter - s.halfWidthPx - slantPad;
+            var xEnd = s.xCenter + s.halfWidthPx + slantPad;
+            if (xEnd <= xStart)
+            {
+                xEnd = xStart + 1;
+            }
+
             for (var y = 0; y < H; y++)
             {
-                if (!RowOnStroke(s, y, out var centerShift))
+                if (s.shape.CanSkipRow(y))
                 {
                     continue;
                 }
@@ -429,7 +325,7 @@ namespace MitarashiDango.RoadAssetGenerator
                     {
                         continue;
                     }
-                    if (!PixelOnStroke(s, x, y, centerShift, out var duFromCenter))
+                    if (!s.shape.TestPixel(x, y, s.xCenter, s.halfWidthPx, out var duFromCenter))
                     {
                         continue;
                     }
@@ -769,9 +665,7 @@ namespace MitarashiDango.RoadAssetGenerator
                     var wearFactor = 1f - wear * 0.5f * Mathf.Abs(noise);
                     var c = s.color * wearFactor;
 
-                    // 縁のソフトニング:Diamond では長辺が |duFromCenter| ≒ halfWidth に位置し、
-                    // Solid/Dashed では静的な x 境界に位置する。
-                    var isEdge = s.type == LineType.Diamond
+                    var isEdge = s.shape.HasDiagonalEdges
                         ? Mathf.Abs(duFromCenter) >= s.halfWidthPx - 1f
                         : (x == xStart || x == xEnd - 1);
 
