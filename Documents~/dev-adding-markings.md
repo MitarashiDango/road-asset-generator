@@ -110,9 +110,9 @@ public class LineStyle
 }
 ```
 
-### 3. `RoadTextureBaker.AddStrokeAt` にファクトリ分岐を追加
+### 3. `StrokeResolver.AddStrokeAt` にファクトリ分岐を追加
 
-`Runtime/RoadTextureBaker.cs` の `AddStrokeAt` メソッド内の `switch` に新しい `case` を追加します。
+`Runtime/Baking/StrokeResolver.cs` の `AddStrokeAt` メソッド内の `switch` に新しい `case` を追加します。
 
 ```csharp
 case LineType.Wave:
