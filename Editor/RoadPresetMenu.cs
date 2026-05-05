@@ -3,7 +3,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-namespace MitarashiDango.RoadAssetGenerator.Editor
+namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
     /// 組み込みプリセットを <see cref="RoadConfigAsset"/> としてプロジェクトに書き出す

@@ -78,7 +78,7 @@ var combined = new UnionShape(layer1, layer2);
 
 ### 1. `LineType` 列挙体に値を追加
 
-`Runtime/RoadConfig.cs`:
+`Editor/RoadConfig.cs`:
 
 ```csharp
 public enum LineType { None, Solid, Dashed, Diamond, /* 追加 → */ Wave }
@@ -86,7 +86,7 @@ public enum LineType { None, Solid, Dashed, Diamond, /* 追加 → */ Wave }
 
 ### 2. `LineStyle` に必要なパラメータを追加
 
-`Runtime/RoadConfig.cs` の `LineStyle` クラスにパラメータを追加し、
+`Editor/RoadConfig.cs` の `LineStyle` クラスにパラメータを追加し、
 `Clone()` メソッドにもコピー処理を追加します。
 
 ```csharp
@@ -112,7 +112,7 @@ public class LineStyle
 
 ### 3. `StrokeResolver.AddStrokeAt` にファクトリ分岐を追加
 
-`Runtime/Baking/StrokeResolver.cs` の `AddStrokeAt` メソッド内の `switch` に新しい `case` を追加します。
+`Editor/Baking/StrokeResolver.cs` の `AddStrokeAt` メソッド内の `switch` に新しい `case` を追加します。
 
 ```csharp
 case LineType.Wave:

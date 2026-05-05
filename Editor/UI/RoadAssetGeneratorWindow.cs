@@ -6,7 +6,7 @@ using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace MitarashiDango.RoadAssetGenerator.Editor
+namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
     /// <see cref="RoadConfig"/> の編集とテクスチャ・マテリアルのベイクを行うメインのエディタウィンドウ。

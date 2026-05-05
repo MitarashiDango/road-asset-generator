@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace MitarashiDango.RoadAssetGenerator.Editor
+namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
     /// ベイクされたテクスチャをディスクに保存し、適切なインポート設定を適用したうえで、

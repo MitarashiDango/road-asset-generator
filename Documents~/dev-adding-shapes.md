@@ -38,7 +38,7 @@ u = -1       u = 0       u = +1
 
 ### 1. クラスを作成する
 
-`Runtime/Shapes/Primitives/` に新しいファイルを作成します。
+`Editor/Shapes/Primitives/` に新しいファイルを作成します。
 
 ```csharp
 using UnityEngine;
