@@ -227,10 +227,21 @@ namespace MitarashiDango.RoadAssetGenerator
             foldout.AddToClassList("lane-foldout");
             foldout.style.flexGrow = 1;
 
+            var totalLanes = serializedObject.FindProperty("config.lanes").arraySize;
+            var upBtn = new Button(() => MoveLane(idx, -1)) { text = "▲", tooltip = "Move up" };
+            upBtn.AddToClassList("reorder-button");
+            upBtn.SetEnabled(idx > 0);
+
+            var downBtn = new Button(() => MoveLane(idx, +1)) { text = "▼", tooltip = "Move down" };
+            downBtn.AddToClassList("reorder-button");
+            downBtn.SetEnabled(idx < totalLanes - 1);
+
             var removeBtn = new Button(() => RemoveLane(idx)) { text = "×" };
             removeBtn.AddToClassList("remove-button");
 
             header.Add(foldout);
+            header.Add(upBtn);
+            header.Add(downBtn);
             header.Add(removeBtn);
             wrapper.Add(header);
 
@@ -410,6 +421,25 @@ namespace MitarashiDango.RoadAssetGenerator
             RebuildLanesSection();
             RebuildLinesSection();
             UpdateInfoLabel();
+        }
+
+        private void MoveLane(int index, int direction)
+        {
+            if (currentAsset == null)
+            {
+                return;
+            }
+            var lanes = currentAsset.config.lanes;
+            var newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= lanes.Count)
+            {
+                return;
+            }
+            Undo.RecordObject(currentAsset, "Reorder Lane");
+            (lanes[index], lanes[newIndex]) = (lanes[newIndex], lanes[index]);
+            EditorUtility.SetDirty(currentAsset);
+            serializedObject.Update();
+            RebuildLanesSection();
         }
 
         private void RemoveLane(int index)
