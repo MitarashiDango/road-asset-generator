@@ -21,7 +21,7 @@ Layer 4: RoadTextureBaker (オーケストレーター)
 ## ディレクトリ構成
 
 ```
-Runtime/
+Editor/
 ├── RoadTextureBaker.cs            # 公開 API (Bake) + GeneratedTextures
 ├── Baking/                        # 内部インフラ
 │   ├── BakeContext.cs             # 共有コンテキスト
