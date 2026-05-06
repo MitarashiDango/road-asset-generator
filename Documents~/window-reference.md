@@ -10,6 +10,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
   - [Surface Tint (路面色)](#surface-tint-路面色)
   - [Rumble Strips (路面凹凸舗装)](#rumble-strips-路面凹凸舗装)
   - [Speed Reduction Dot Line (減速ドットライン)](#speed-reduction-dot-line-減速ドットライン)
+  - [Deceleration Marks (減速マーク / 山形マーク)](#deceleration-marks-減速マーク--山形マーク)
 - [Boundary Lines](#boundary-lines)
 - [Asphalt (路面)](#asphalt-路面)
 - [Weathering](#weathering)
@@ -222,6 +223,61 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 #### Snap & center pattern
 
 - ボタン操作。Dot Spacing と Start Offset をタイル長に合わせて自動補正します。
+
+---
+
+### Deceleration Marks (減速マーク / 山形マーク)
+
+急カーブ、急坂、連続カーブ、追突事故多発区間などの減速を要する区間およびその手前に設置される塗装路面標示。
+レーン中央に進行方向を指す V 字 (シェブロン) を V 軸方向に周期的に配置する。
+レーンの方向 (Forward/Backward) に応じて V 字の頂点の向きが自動反転する。
+
+#### Enable
+
+- bool, default false
+
+#### Mark Color
+
+- Color, default 白
+
+#### Mark Width (m)
+
+- float, ≥0.3, default 2.5
+- V 字の開口幅 (U 軸方向の最大幅)。レーン幅 - 2 × Edge Inset を超える場合は自動でクリップされる。
+
+#### Mark Height (m)
+
+- float, ≥0.2, default 1.0
+- V 字 1 つ分の V 軸方向の高さ (深さ)。
+
+#### Mark Spacing (m)
+
+- float, ≥0.5, default 5.0
+- 隣接する V 字マーク間の V 軸方向ギャップ。
+
+#### Line Thickness (m)
+
+- float, ≥0.05, default 0.2
+- V 字を構成する線の太さ (足元の垂直エッジの V 軸方向長さ)。Mark Height に対する比率として正規化される。
+
+#### Edge Inset (m)
+
+- float, ≥0.0, default 0.3
+- レーン端から V 字の最も外側 (開口部) までの距離。区画線とマークが重ならないようにするためのマージン。
+
+#### Start Offset (m)
+
+- float, default 0.0
+- タイル内の V 軸方向の位相オフセット。
+
+#### Paint Height Factor
+
+- float, ≥0.0, default 1.0
+- 法線マップへの塗装高さ寄与の倍率。
+
+#### Snap & center pattern
+
+- ボタン操作。Mark Spacing と Start Offset をタイル長に合わせて自動補正します。
 
 ---
 

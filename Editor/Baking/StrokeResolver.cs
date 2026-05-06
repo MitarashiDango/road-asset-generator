@@ -5,7 +5,7 @@ namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
     /// <see cref="RoadConfig"/> から描画用の <see cref="LineStroke"/> リストを解決する。
-    /// 境界線ストロークと、レーンの減速ドットラインの両方を統一的に扱う。
+    /// 境界線ストローク、減速ドットライン、減速マーク (山形) を統一的に扱う。
     /// </summary>
     internal static class StrokeResolver
     {
@@ -14,6 +14,7 @@ namespace MitarashiDango.RoadAssetGenerator
             var strokes = new List<LineStroke>();
             ResolveBoundaryStrokes(strokes, in ctx);
             ResolveSpeedReductionDotLines(strokes, in ctx);
+            ResolveDecelerationMarks(strokes, in ctx);
             return strokes;
         }
 
@@ -209,6 +210,81 @@ namespace MitarashiDango.RoadAssetGenerator
                     lane.speedReductionDotLineSlantMeters * slantSign * directionSign * pxPerMy),
                 color = lane.speedReductionDotLineColor,
                 paintHeightFactor = lane.speedReductionDotLinePaintHeightFactor,
+                seed = seedCounter++,
+            });
+        }
+
+        // 各レーンの decelerationMark 設定から派生する V 字型シェブロン stroke を生成する。
+        // レーン中央に V 字を周期配置し、進行方向 (Forward/Backward) に応じて頂点の向きを反転する。
+        private static void ResolveDecelerationMarks(List<LineStroke> strokes, in BakeContext ctx)
+        {
+            var config = ctx.config;
+            var strokeSeed = ctx.seed + 7000;
+            config.EnsureLineCount();
+            var pos = config.leftShoulder.widthMeters;
+
+            for (var b = 0; b <= config.lanes.Count; b++)
+            {
+                config.lines[b].ComputeSlotInfo(out _, out _, out var slotWidth);
+                pos += slotWidth;
+                if (b >= config.lanes.Count)
+                {
+                    break;
+                }
+
+                var lane = config.lanes[b];
+                var laneStart = pos;
+                var laneEnd = laneStart + lane.widthMeters;
+
+                if (lane.decelerationMark
+                    && lane.decelerationMarkWidthMeters > 0f
+                    && lane.decelerationMarkHeightMeters > 0f)
+                {
+                    AppendLaneDecelerationMark(strokes, lane, laneStart, laneEnd, ctx.pxPerMx, ctx.pxPerMy, ref strokeSeed);
+                }
+
+                pos = laneEnd;
+            }
+        }
+
+        private static void AppendLaneDecelerationMark(List<LineStroke> strokes, LaneConfig lane, float laneStart, float laneEnd, float pxPerMx, float pxPerMy, ref int seedCounter)
+        {
+            // レーン中央に配置。
+            var xCenterMeters = (laneStart + laneEnd) * 0.5f;
+            var xCenter = Mathf.RoundToInt(xCenterMeters * pxPerMx);
+
+            // 半幅 = max(指定幅/2, レーン半幅 - inset)。指定幅がレーン幅を超える場合はクリップ。
+            var availableHalfWidth = Mathf.Max(0.05f, lane.widthMeters * 0.5f - lane.decelerationMarkInsetMeters);
+            var halfWidthMeters = Mathf.Min(lane.decelerationMarkWidthMeters * 0.5f, availableHalfWidth);
+            var halfW = Mathf.Max(1, Mathf.RoundToInt(halfWidthMeters * pxPerMx));
+
+            // 進行方向で V 字の頂点を決定。
+            // 内部 v 軸 [0..1] は MarkingPattern が周期計算後に渡すローカル座標で、
+            // v=0 が周期の先頭 (テクスチャ y が小さい側)、v=1 が末尾 (テクスチャ y が大きい側)。
+            // 通常 Unity の道路メッシュでは V+ (進行方向 forward) = テクスチャ y 大の方向に対応するため、
+            //   Forward → 頂点を v=1 側 (テクスチャ y 大 = 進行方向の前方) に → pointAtTop=false
+            //   Backward → 頂点を v=0 側 (進行方向の前方) に → pointAtTop=true
+            var pointAtTop = lane.direction == LaneDirection.Backward;
+
+            // 厚みは「足元の V 軸方向の長さ」として正規化する。
+            // ChevronPrimitive の h パラメータは Mark Height に対する足元 V 長の比率。
+            var thicknessNormV = lane.decelerationMarkHeightMeters > 0f
+                ? lane.decelerationMarkThicknessMeters / lane.decelerationMarkHeightMeters
+                : 0.2f;
+
+            var shape = new MarkingPattern(
+                new ChevronPrimitive(thicknessNormV, pointAtTop),
+                lane.decelerationMarkHeightMeters * pxPerMy,
+                lane.decelerationMarkSpacingMeters * pxPerMy,
+                lane.decelerationMarkStartOffsetMeters * pxPerMy);
+
+            strokes.Add(new LineStroke
+            {
+                xCenter = xCenter,
+                halfWidthPx = halfW,
+                shape = shape,
+                color = lane.decelerationMarkColor,
+                paintHeightFactor = lane.decelerationMarkPaintHeightFactor,
                 seed = seedCounter++,
             });
         }

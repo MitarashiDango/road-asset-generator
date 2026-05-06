@@ -199,6 +199,25 @@ namespace MitarashiDango.RoadAssetGenerator
         [Min(0f)] public float speedReductionDotLineInsetMeters = 0.30f;
         public SpeedReductionDotLineSide speedReductionDotLineSide = SpeedReductionDotLineSide.Right;
         [Min(0f)] public float speedReductionDotLinePaintHeightFactor = 1.0f;
+
+        // ---- 減速マーク (山形マーク / Deceleration Chevron) ----
+        // レーン中央に進行方向を指す V 字型シェブロンを V 軸方向へ周期的に配置する。
+        // 急カーブや追突事故多発区間など、減速を要する区間およびその手前に設置される塗装路面標示。
+        public bool decelerationMark = false;
+        public Color decelerationMarkColor = Color.white;
+        // V字の開口幅 (U軸方向)。
+        [Min(0.3f)] public float decelerationMarkWidthMeters = 2.5f;
+        // V字の深さ (V軸方向のマーク 1 つ分の高さ)。
+        [Min(0.2f)] public float decelerationMarkHeightMeters = 1.0f;
+        // V字マーク間のギャップ (V軸方向)。
+        [Min(0.5f)] public float decelerationMarkSpacingMeters = 5.0f;
+        // V字を構成する線の太さ。
+        [Min(0.05f)] public float decelerationMarkThicknessMeters = 0.2f;
+        // V 軸の位相オフセット。
+        public float decelerationMarkStartOffsetMeters = 0f;
+        // レーン端からの U 軸インセット (区画線とマークが重ならないようにする)。
+        [Min(0f)] public float decelerationMarkInsetMeters = 0.3f;
+        [Min(0f)] public float decelerationMarkPaintHeightFactor = 1.0f;
     }
 
     [Serializable]
