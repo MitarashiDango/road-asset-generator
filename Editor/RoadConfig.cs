@@ -32,8 +32,9 @@ namespace MitarashiDango.RoadAssetGenerator
         public float dashOffsetMeters = 2.5f;
 
         // Diamond 専用パラメータ。V 軸方向に繰り返されるシアー長方形(平行四辺形)。
-        [Min(0.05f)] public float diamondSizeMeters = 0.8f;
-        [Min(0.05f)] public float diamondSpacingMeters = 1.5f;
+        // 既定: size 1.0m + spacing 1.0m = 2.0m 周期。タイル長 10m を整数等分 (5 マーク/タイル)。
+        [Min(0.05f)] public float diamondSizeMeters = 1.0f;
+        [Min(0.05f)] public float diamondSpacingMeters = 1.0f;
         public float diamondSlantMeters = 0.3f;
 
         /// <summary>
@@ -178,13 +179,15 @@ namespace MitarashiDango.RoadAssetGenerator
         [Range(0f, 1f)] public float surfaceTintStrength = 0.7f;
 
         // ---- 減速帯 (Rumble strips) ----
+        // 既定: width 0.30m + spacing 0.70m = 1.0m 周期。タイル長 10m を整数等分 (10 帯/タイル)。
+        // 路面凹凸構造指針の標準寸法に準拠。
         public bool rumbleStrip = false;
         [Min(0.05f)] public float rumbleStripWidthMeters = 0.30f;
-        [Min(0.1f)]  public float rumbleStripSpacingMeters = 1.0f;
+        [Min(0.1f)]  public float rumbleStripSpacingMeters = 0.70f;
         public Color rumbleStripColor = Color.white;
         // V 軸の位相オフセット (0..tile 長)。spacing/2 を既定とすることでパターンがタイル内中央配置になる
         // (LineStyle.dashOffsetMeters の流儀に揃えている)。
-        public float rumbleStripStartOffsetMeters = 0.5f;
+        public float rumbleStripStartOffsetMeters = 0.35f;
         // 区画線と帯が重ならないようにするための、レーン端からの U 軸方向のインセット。
         [Min(0f)] public float rumbleStripInsetMeters = 0.20f;
         // 減速帯は細い区画線より厚塗りされる傾向にあるため、既定 1.5 倍。
@@ -193,33 +196,36 @@ namespace MitarashiDango.RoadAssetGenerator
         // ---- 減速ドットライン (Speed Reduction Dot Line) ----
         // 国土交通省関東地方整備局による正式名称。レーン端に沿って斜行した平行四辺形 (ドット) が
         // 一定間隔で並び、視覚的に走行速度を抑制する効果を狙った路面標示。
+        // 既定: height 1.0m + spacing 1.0m = 2.0m 周期。タイル長 10m を整数等分 (5 ドット/タイル)。
         public bool speedReductionDotLine = false;
         [Min(0.05f)] public float speedReductionDotLineWidthMeters = 0.30f;
-        [Min(0.05f)] public float speedReductionDotLineHeightMeters = 1.5f;
-        [Min(0.1f)]  public float speedReductionDotLineSpacingMeters = 1.5f;
+        [Min(0.05f)] public float speedReductionDotLineHeightMeters = 1.0f;
+        [Min(0.1f)]  public float speedReductionDotLineSpacingMeters = 1.0f;
         public Color speedReductionDotLineColor = Color.white;
-        public float speedReductionDotLineStartOffsetMeters = 0.75f;
+        public float speedReductionDotLineStartOffsetMeters = 0.5f;
         public float speedReductionDotLineSlantMeters = 0.3f;
         // 選択したレーン端からドットの最も近い縁までの距離(0 以上)。
-        [Min(0f)] public float speedReductionDotLineInsetMeters = 0.30f;
+        [Min(0f)] public float speedReductionDotLineInsetMeters = 0.20f;
         public SpeedReductionDotLineSide speedReductionDotLineSide = SpeedReductionDotLineSide.Right;
         [Min(0f)] public float speedReductionDotLinePaintHeightFactor = 1.0f;
 
         // ---- 減速マーク (山形マーク / Deceleration Chevron) ----
         // レーン中央に進行方向を指す V 字型シェブロンを V 軸方向へ周期的に配置する。
         // 急カーブや追突事故多発区間など、減速を要する区間およびその手前に設置される塗装路面標示。
+        // 既定: height 1.0m + spacing 4.0m = 5.0m 周期。タイル長 10m を整数等分 (2 マーク/タイル)。
+        // 線太さ 0.20m は政令の標準型に準拠。
         public bool decelerationMark = false;
         public Color decelerationMarkColor = Color.white;
         // V字の開口幅 (U軸方向)。
-        [Min(0.3f)] public float decelerationMarkWidthMeters = 2.5f;
+        [Min(0.3f)] public float decelerationMarkWidthMeters = 2.0f;
         // V字の深さ (V軸方向のマーク 1 つ分の高さ)。
         [Min(0.2f)] public float decelerationMarkHeightMeters = 1.0f;
         // V字マーク間のギャップ (V軸方向)。
-        [Min(0.5f)] public float decelerationMarkSpacingMeters = 5.0f;
+        [Min(0.5f)] public float decelerationMarkSpacingMeters = 4.0f;
         // V字を構成する線の太さ。
         [Min(0.05f)] public float decelerationMarkThicknessMeters = 0.2f;
-        // V 軸の位相オフセット。
-        public float decelerationMarkStartOffsetMeters = 0f;
+        // V 軸の位相オフセット。spacing/2 を既定とすることでパターンがタイル内中央配置になる。
+        public float decelerationMarkStartOffsetMeters = 2.0f;
         // レーン端からの U 軸インセット (区画線とマークが重ならないようにする)。
         [Min(0f)] public float decelerationMarkInsetMeters = 0.3f;
         [Min(0f)] public float decelerationMarkPaintHeightFactor = 1.0f;
