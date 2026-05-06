@@ -29,9 +29,9 @@ namespace MitarashiDango.RoadAssetGenerator
             var dark = config.asphalt.darkSpeckAmount;
 
             float[] wearMap = null;
-            if (config.weathering.tireTrackWear > 0f)
+            if (HasAnyTireWear(config))
             {
-                wearMap = BuildTireTrackWear(config, W, H);
+                wearMap = BuildTireTrackWear(config, laneRanges, W, H, ctx.pxPerMx);
             }
 
             var laneIndexAt = BuildLaneIndexLUT(W, laneRanges);
@@ -98,7 +98,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
             // 路面凹凸舗装と境界線ストロークはアスファルトの上から重ね描きする。
             StampRumbleStrips(pixels, in ctx, laneRanges, seed + 350);
-            StampStrokes(pixels, W, H, strokes, config.weathering.lineWear, config.weathering.lineFade, seed + 400);
+            StampStrokes(pixels, W, H, strokes, config.weathering.lineWear, config.weathering.lineFade, wearMap, config.weathering.tireTrackMarkingWearStrength, seed + 400);
 
             if (config.weathering.repairPatches && config.weathering.repairPatchCount > 0)
             {
@@ -135,22 +135,31 @@ namespace MitarashiDango.RoadAssetGenerator
             return lut;
         }
 
-        private static float[] BuildTireTrackWear(RoadConfig config, int W, int H)
+        private static float[] BuildTireTrackWear(RoadConfig config, LaneRange[] laneRanges, int W, int H, float pxPerMx)
         {
             var map = new float[W * H];
-            var pxPerMx = W / config.TotalWidthMeters;
-            var intensity = config.weathering.tireTrackWear;
-            var pos = config.leftShoulder.widthMeters;
+            var globalIntensity = config.weathering.tireTrackWear;
+
+            // 1 レーンに 2 本のタイヤ跡(中央から ±0.85 m、シグマ 0.18 m のガウシアン)。
+            var trackOffsetPx = 0.85f * pxPerMx;
+            var sigmaPx = Mathf.Max(1, Mathf.RoundToInt(0.18f * pxPerMx));
+
             for (var li = 0; li < config.lanes.Count; li++)
             {
-                var laneCenter = pos + config.lanes[li].widthMeters * 0.5f;
-                pos += config.lanes[li].widthMeters;
-                // 1 レーンに 2 本のタイヤ跡(中央から ±0.85 m)。
+                var lane = config.lanes[li];
+                var laneIntensity = Mathf.Clamp01(globalIntensity + lane.tireTrackWearBoost);
+                if (laneIntensity <= 0f)
+                {
+                    continue;
+                }
+
+                // 境界線スロット幅を含めた正しいレーン中央を LaneRange から取得する。
+                var range = laneRanges[li];
+                var laneCenterPx = (range.xStart + range.xEnd) * 0.5f;
+
                 for (var side = -1; side <= 1; side += 2)
                 {
-                    var trackX = laneCenter + side * 0.85f;
-                    var trackPx = Mathf.RoundToInt(trackX * pxPerMx);
-                    var sigmaPx = Mathf.RoundToInt(0.18f * pxPerMx);
+                    var trackPx = Mathf.RoundToInt(laneCenterPx + side * trackOffsetPx);
                     for (var x = trackPx - sigmaPx * 3; x <= trackPx + sigmaPx * 3; x++)
                     {
                         if (x < 0 || x >= W)
@@ -161,12 +170,28 @@ namespace MitarashiDango.RoadAssetGenerator
                         var falloff = Mathf.Exp(-dx * dx * 0.5f);
                         for (var y = 0; y < H; y++)
                         {
-                            map[y * W + x] += falloff * intensity;
+                            map[y * W + x] += falloff * laneIntensity;
                         }
                     }
                 }
             }
             return map;
+        }
+
+        private static bool HasAnyTireWear(RoadConfig config)
+        {
+            if (config.weathering.tireTrackWear > 0f)
+            {
+                return true;
+            }
+            for (var i = 0; i < config.lanes.Count; i++)
+            {
+                if (config.lanes[i].tireTrackWearBoost > 0f)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static void StampRumbleStrips(Color32[] pixels, in BakeContext ctx, LaneRange[] laneRanges, int seedBase)
@@ -199,8 +224,9 @@ namespace MitarashiDango.RoadAssetGenerator
             }
         }
 
-        private static void StampStrokes(Color32[] pixels, int W, int H, List<LineStroke> strokes, float wear, float fade, int seedBase)
+        private static void StampStrokes(Color32[] pixels, int W, int H, List<LineStroke> strokes, float wear, float fade, float[] wearMap, float markingWearStrength, int seedBase)
         {
+            var applyTireWear = wearMap != null && markingWearStrength > 0f;
             foreach (var stroke in strokes)
             {
                 var rng = new System.Random(stroke.seed + seedBase);
@@ -225,6 +251,19 @@ namespace MitarashiDango.RoadAssetGenerator
                     {
                         c = Color.Lerp(c, Color.gray, fade * 0.4f);
                     }
+
+                    // タイヤ跡が標示の上を通る位置では、下地色に寄せて摩耗表現を加える。
+                    if (applyTireWear)
+                    {
+                        var localTireWear = Mathf.Clamp01(wearMap[idx]);
+                        if (localTireWear > 0f)
+                        {
+                            var fadeT = localTireWear * markingWearStrength;
+                            var src = pixels[idx];
+                            c = Color.Lerp(c, new Color(src.r / 255f, src.g / 255f, src.b / 255f), fadeT);
+                        }
+                    }
+
                     pixels[idx] = TextureUtils.ToColor32(c);
                 });
             }

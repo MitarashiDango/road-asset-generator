@@ -264,12 +264,25 @@ namespace MitarashiDango.RoadAssetGenerator
             directionField.RegisterValueChangedCallback(_ => foldout.text = FormatLaneFoldoutTitle(idx, laneProp));
             foldout.Add(directionField);
 
+            BuildLaneTireTrackWearSection(foldout, laneProp);
             BuildLaneTintSection(foldout, laneProp);
             BuildLaneRumbleSection(foldout, laneProp);
             BuildLaneSpeedReductionDotLineSection(foldout, laneProp);
             BuildLaneDecelerationMarkSection(foldout, laneProp);
 
             return wrapper;
+        }
+
+        private void BuildLaneTireTrackWearSection(Foldout parent, SerializedProperty laneProp)
+        {
+            var section = NewLaneSubSection("Tire Track Wear (タイヤ跡摩耗)");
+
+            var boostField = new Slider("Wear Boost", 0f, 1f) { showInputField = true };
+            boostField.tooltip = "全体設定 (Weathering > Tire Track Wear) に加算されるレーン固有の追加摩耗強度。0 で全体値のみ、1 で全体値 +1 (clamp 1.0 で最大摩耗)。";
+            boostField.BindProperty(laneProp.FindPropertyRelative("tireTrackWearBoost"));
+            section.Add(boostField);
+
+            parent.Add(section);
         }
 
         private static string FormatLaneFoldoutTitle(int idx, SerializedProperty laneProp)

@@ -98,7 +98,8 @@
       <engine:VisualElement class="indented">
         <engine:Slider label="Line Edge Wear"   binding-path="config.weathering.lineWear"        low-value="0" high-value="1" show-input-field="true" tooltip="Reduces paint thickness in normal map (1 = fully worn / flat) and adds edge color noise." />
         <engine:Slider label="Line Fade"        binding-path="config.weathering.lineFade"        low-value="0" high-value="1" show-input-field="true" />
-        <engine:Slider label="Tire Track Wear"  binding-path="config.weathering.tireTrackWear"  low-value="0" high-value="1" show-input-field="true" />
+        <engine:Slider label="Tire Track Wear"  binding-path="config.weathering.tireTrackWear"  low-value="0" high-value="1" show-input-field="true" tooltip="路面全体に適用される基本タイヤ跡摩耗。各車線の Tire Track Wear Boost と加算される。" />
+        <engine:Slider label="Marking Wear from Tire Tracks" binding-path="config.weathering.tireTrackMarkingWearStrength" low-value="0" high-value="1" show-input-field="true" tooltip="タイヤ跡の上にある路面標示 (境界線・減速マーク・ドットライン等) を下地色に寄せて摩耗表現する強度。0 = 影響なし、1 = 完全フェード。" />
         <engine:Slider label="Paint Height Strength" binding-path="config.weathering.paintHeightStrength" low-value="0" high-value="3" show-input-field="true" tooltip="Global multiplier on painted-marking height contribution to the normal map. 0 = no raised paint, 1 = standard thickness, higher = thicker." />
         <engine:Toggle label="Repair Patches"   binding-path="config.weathering.repairPatches" />
         <engine:SliderInt label="Patch Count"   binding-path="config.weathering.repairPatchCount" low-value="1" high-value="8" show-input-field="true" />

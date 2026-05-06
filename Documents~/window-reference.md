@@ -7,6 +7,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 - [Output](#output)
 - [Shoulders (路側帯)](#shoulders-路側帯)
 - [Lanes](#lanes)
+  - [Tire Track Wear (タイヤ跡摩耗)](#tire-track-wear-タイヤ跡摩耗)
   - [Surface Tint (路面色)](#surface-tint-路面色)
   - [Rumble Strips (路面凹凸舗装)](#rumble-strips-路面凹凸舗装)
   - [Speed Reduction Dot Line (減速ドットライン)](#speed-reduction-dot-line-減速ドットライン)
@@ -102,6 +103,18 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 - enum (Forward / Backward), default Forward
 - 車線の進行方向。Backward を選ぶと Speed Reduction Dot Line の slant が自動反転されます。
+
+---
+
+### Tire Track Wear (タイヤ跡摩耗)
+
+レーンごとのタイヤ跡摩耗の追加調整。Weathering > Tire Track Wear (全体設定) に加算される。
+
+#### Wear Boost
+
+- float, 0.0 〜 1.0, default 0.0
+- 全体タイヤ跡摩耗強度に加算されるレーン固有の値。実効強度は `clamp(全体値 + Wear Boost, 0, 1)`。
+- 例: 全体 0.2 + レーン 0.3 → 実効 0.5。0.0 のままなら全体値のみ適用。
 
 ---
 
@@ -388,7 +401,14 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 ### Tire Track Wear
 
 - float (Slider), 0.0 〜 1.0, default 0.0
-- タイヤ跡による車線中央付近の暗化。
+- タイヤ跡による車線中央付近の暗化。レーン端から ±0.85 m 位置を中心としたガウシアンで適用される。
+- レーンごとの追加調整は `Lanes > Tire Track Wear > Wear Boost` で行う (両者の値が加算される)。
+
+### Marking Wear from Tire Tracks
+
+- float (Slider), 0.0 〜 1.0, default 0.5
+- タイヤ跡の上にある路面標示 (境界線・減速マーク・ドットライン等) を下地色 (アスファルト) に寄せて摩耗表現する強度。
+- 0.0 = 標示はタイヤ跡の影響を受けない (鮮明な状態)、1.0 = タイヤ跡上で標示が完全にフェード。
 
 ### Paint Height Strength
 
