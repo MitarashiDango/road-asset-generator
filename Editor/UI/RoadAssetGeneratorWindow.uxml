@@ -44,7 +44,7 @@
         <engine:FloatField label="Tile Length (m)"   binding-path="config.output.textureLengthMeters" />
         <engine:VisualElement class="row">
           <engine:TextField label="Output Folder" binding-path="config.output.outputFolder" class="grow" />
-          <engine:Button name="output-folder-browse" text="..." class="browse-button" tooltip="Browse for an output folder inside the project (Assets/ or Packages/)." />
+          <engine:Button name="output-folder-browse" text="..." class="browse-button" tooltip="プロジェクト内 (Assets/ または Packages/) の出力フォルダを参照。" />
         </engine:VisualElement>
         <engine:TextField  label="Name Prefix"       binding-path="config.output.namePrefix" />
         <engine:IntegerField label="Seed"            binding-path="config.output.seed" />
@@ -96,11 +96,11 @@
     <!-- Weathering -->
     <engine:Foldout name="weathering-foldout" text="Weathering" value="true">
       <engine:VisualElement class="indented">
-        <engine:Slider label="Line Edge Wear"   binding-path="config.weathering.lineWear"        low-value="0" high-value="1" show-input-field="true" tooltip="Reduces paint thickness in normal map (1 = fully worn / flat) and adds edge color noise." />
+        <engine:Slider label="Line Edge Wear"   binding-path="config.weathering.lineWear"        low-value="0" high-value="1" show-input-field="true" tooltip="法線マップ上の塗装高さを減衰させる (1 で完全摩耗・平坦) と同時に、エッジに色ノイズを加える。" />
         <engine:Slider label="Line Fade"        binding-path="config.weathering.lineFade"        low-value="0" high-value="1" show-input-field="true" />
         <engine:Slider label="Tire Track Wear"  binding-path="config.weathering.tireTrackWear"  low-value="0" high-value="1" show-input-field="true" tooltip="路面全体に適用される基本タイヤ跡摩耗。各車線の Tire Track Wear Boost と加算される。" />
         <engine:Slider label="Marking Wear from Tire Tracks" binding-path="config.weathering.tireTrackMarkingWearStrength" low-value="0" high-value="1" show-input-field="true" tooltip="タイヤ跡の上にある路面標示 (境界線・減速マーク・ドットライン等) を下地色に寄せて摩耗表現する強度。0 = 影響なし、1 = 完全フェード。" />
-        <engine:Slider label="Paint Height Strength" binding-path="config.weathering.paintHeightStrength" low-value="0" high-value="3" show-input-field="true" tooltip="Global multiplier on painted-marking height contribution to the normal map. 0 = no raised paint, 1 = standard thickness, higher = thicker." />
+        <engine:Slider label="Paint Height Strength" binding-path="config.weathering.paintHeightStrength" low-value="0" high-value="3" show-input-field="true" tooltip="塗装マークの法線マップへの全体高さ寄与倍率。0 で塗装の凸なし、1 で標準厚、それ以上で厚塗り。" />
         <engine:Toggle label="Repair Patches"   binding-path="config.weathering.repairPatches" />
         <engine:SliderInt label="Patch Count"   binding-path="config.weathering.repairPatchCount" low-value="1" high-value="8" show-input-field="true" />
         <engine:Toggle label="Wet Surface"      binding-path="config.weathering.wetSurface" />
