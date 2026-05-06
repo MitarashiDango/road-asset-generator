@@ -228,11 +228,11 @@ namespace MitarashiDango.RoadAssetGenerator
             foldout.style.flexGrow = 1;
 
             var totalLanes = serializedObject.FindProperty("config.lanes").arraySize;
-            var upBtn = new Button(() => MoveLane(idx, -1)) { text = "▲", tooltip = "Move up" };
+            var upBtn = new Button(() => MoveLane(idx, -1)) { text = "▲", tooltip = "上へ移動" };
             upBtn.AddToClassList("reorder-button");
             upBtn.SetEnabled(idx > 0);
 
-            var downBtn = new Button(() => MoveLane(idx, +1)) { text = "▼", tooltip = "Move down" };
+            var downBtn = new Button(() => MoveLane(idx, +1)) { text = "▼", tooltip = "下へ移動" };
             downBtn.AddToClassList("reorder-button");
             downBtn.SetEnabled(idx < totalLanes - 1);
 
@@ -259,7 +259,7 @@ namespace MitarashiDango.RoadAssetGenerator
             foldout.Add(widthField);
 
             var directionField = new EnumField("Direction");
-            directionField.tooltip = "Traffic flow along V axis. Forward = V+ (away). Backward = V- (oncoming). Diamond markers' slant is auto-flipped for Backward lanes so chevrons point in the direction of travel.";
+            directionField.tooltip = "V 軸方向の進行方向。Forward = V+ (奥)、Backward = V- (対向)。Diamond マーカーや減速マークの斜行は Backward レーンで自動反転され、シェブロンが進行方向を指す。";
             directionField.BindProperty(laneProp.FindPropertyRelative("direction"));
             directionField.RegisterValueChangedCallback(_ => foldout.text = FormatLaneFoldoutTitle(idx, laneProp));
             foldout.Add(directionField);
@@ -324,7 +324,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
         private void BuildLaneRumbleSection(Foldout parent, SerializedProperty laneProp)
         {
-            var section = NewLaneSubSection("Rumble Strips (路面凹凸舗装)");
+            var section = NewLaneSubSection("Rumble Strips (減速帯)");
 
             var enableToggle = new Toggle("Enable");
             enableToggle.BindProperty(laneProp.FindPropertyRelative("rumbleStrip"));
@@ -342,11 +342,11 @@ namespace MitarashiDango.RoadAssetGenerator
             AddBoundFloat(detailGroup, laneProp, "rumbleStripInsetMeters", "Edge Inset (m)",
                 "車線端から帯の U 軸方向の内側終端までの距離。区画線と帯が重ならないようにスペースを作る。");
             AddBoundFloat(detailGroup, laneProp, "rumbleStripPaintHeightFactor", "Paint Height Factor",
-                "Rumble strip paint thickness contribution to the normal map (default 1.5 — thicker than thin painted lines). Modulated by Weathering.PaintHeightStrength and Line Edge Wear.");
+                "減速帯塗装の法線マップへの寄与倍率 (既定 1.5 — 細い区画線より厚塗り)。Weathering.PaintHeightStrength と Line Edge Wear で全体スケールが調整される。");
 
             var (tileWarn, snapBtn) = AddTileWarnAndSnap(detailGroup,
                 "Snap & center pattern",
-                "Adjust stripe spacing so the period divides the texture tile evenly, and set the start offset so stripes are centered (half-gap on each tile boundary).",
+                "帯の周期がタイル長を整数等分するように spacing を補正し、タイル境界に均等配置されるよう start offset を再センタリング。",
                 () => SnapRumbleToTile(laneProp));
 
             section.Add(detailGroup);
@@ -385,19 +385,19 @@ namespace MitarashiDango.RoadAssetGenerator
             var spacingField = AddBoundFloat(detailGroup, laneProp, "speedReductionDotLineSpacingMeters", "Dot Spacing (m)");
             AddBoundColor(detailGroup, laneProp, "speedReductionDotLineColor", "Dot Color");
             AddBoundFloat(detailGroup, laneProp, "speedReductionDotLineSlantMeters", "Slant (m)",
-                "V-axis offset between the dot's two columns. Positive: the lane-interior side tilts toward the traffic direction (the dot leans in the direction of travel). Negative: opposite. 0: rectangle. With Side=Both the right-side stroke is auto-mirrored, and Backward lanes auto-flip the slant — so a single positive value gives the correct visual on both lanes of a 2-way road.");
+                "ドット 2 列間の V 軸オフセット。正値: 車線内側が進行方向に向かって傾く (進行方向にドットがリーン)。負値: 逆方向。0: 矩形。Side=Both のとき右側ストロークは自動ミラー、Backward レーンは斜行が自動反転されるため、両側を持つ 2 車線道路でも単一の正値で正しい見た目になる。");
             AddBoundFloat(detailGroup, laneProp, "speedReductionDotLineInsetMeters", "Edge Inset (m)",
-                "Distance from the chosen lane edge to the dot's nearest edge. Use this to leave space between the dot line and the centerline / shoulder.");
+                "選択した車線端からドットの最も近い縁までの距離。区画線・路側帯との間隔を確保するために使う。");
             AddBoundEnum(detailGroup, laneProp, "speedReductionDotLineSide", "Side",
-                "Which lane edge(s) to place the dot line on. 'Both' generates two columns (one near each edge) sharing the same slant.");
+                "ドットラインを配置する車線端。'Both' で両端に同じ斜行のドット列を 2 本配置。");
             AddBoundFloat(detailGroup, laneProp, "speedReductionDotLineStartOffsetMeters", "Start Offset (m)",
-                "V-axis phase offset within one tile period.");
+                "タイル内の V 軸方向位相オフセット (1 周期内)。");
             AddBoundFloat(detailGroup, laneProp, "speedReductionDotLinePaintHeightFactor", "Paint Height Factor",
-                "Speed reduction dot line paint thickness contribution to the normal map. Modulated by Weathering.PaintHeightStrength and Line Edge Wear.");
+                "減速ドットライン塗装の法線マップへの寄与倍率。Weathering.PaintHeightStrength と Line Edge Wear で全体スケールが調整される。");
 
             var (tileWarn, snapBtn) = AddTileWarnAndSnap(detailGroup,
                 "Snap & center pattern",
-                "Adjust dot spacing so the period divides the texture tile evenly, and set the start offset so dots are centered (half-gap on each tile boundary).",
+                "ドット周期がタイル長を整数等分するように spacing を補正し、タイル境界に均等配置されるよう start offset を再センタリング。",
                 () => SnapLaneSpeedReductionDotLineToTile(laneProp));
 
             section.Add(detailGroup);
@@ -450,7 +450,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
             var (tileWarn, snapBtn) = AddTileWarnAndSnap(detailGroup,
                 "Snap & center pattern",
-                "Adjust mark spacing so the period divides the texture tile evenly, and set the start offset so marks are centered (half-gap on each tile boundary).",
+                "マーク周期がタイル長を整数等分するように spacing を補正し、タイル境界に均等配置されるよう start offset を再センタリング。",
                 () => SnapDecelerationMarkToTile(laneProp));
 
             section.Add(detailGroup);
@@ -562,11 +562,11 @@ namespace MitarashiDango.RoadAssetGenerator
             foldout.style.flexGrow = 1;
 
             var totalLines = serializedObject.FindProperty("config.lines").arraySize;
-            var upBtn = new Button(() => MoveLine(index, -1)) { text = "▲", tooltip = "Move up" };
+            var upBtn = new Button(() => MoveLine(index, -1)) { text = "▲", tooltip = "上へ移動" };
             upBtn.AddToClassList("reorder-button");
             upBtn.SetEnabled(index > 0);
 
-            var downBtn = new Button(() => MoveLine(index, +1)) { text = "▼", tooltip = "Move down" };
+            var downBtn = new Button(() => MoveLine(index, +1)) { text = "▼", tooltip = "下へ移動" };
             downBtn.AddToClassList("reorder-button");
             downBtn.SetEnabled(index < totalLines - 1);
 
@@ -633,15 +633,15 @@ namespace MitarashiDango.RoadAssetGenerator
             };
             sFoldout.style.flexGrow = 1;
 
-            var sUp = new Button(() => MoveStroke(lineIndex, strokeIdx, -1)) { text = "▲", tooltip = "Move stroke up" };
+            var sUp = new Button(() => MoveStroke(lineIndex, strokeIdx, -1)) { text = "▲", tooltip = "ストロークを上へ移動" };
             sUp.AddToClassList("reorder-button");
             sUp.SetEnabled(strokeIdx > 0);
 
-            var sDown = new Button(() => MoveStroke(lineIndex, strokeIdx, +1)) { text = "▼", tooltip = "Move stroke down" };
+            var sDown = new Button(() => MoveStroke(lineIndex, strokeIdx, +1)) { text = "▼", tooltip = "ストロークを下へ移動" };
             sDown.AddToClassList("reorder-button");
             sDown.SetEnabled(strokeIdx < totalStrokes - 1);
 
-            var sRemove = new Button(() => RemoveStroke(lineIndex, strokeIdx)) { text = "✕", tooltip = "Remove stroke" };
+            var sRemove = new Button(() => RemoveStroke(lineIndex, strokeIdx)) { text = "✕", tooltip = "ストロークを削除" };
             sRemove.AddToClassList("remove-button");
             sRemove.SetEnabled(totalStrokes > 1);
 
@@ -812,7 +812,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // spacing をスナップして同時に offset を再センタリングし、パターンがタイル内で対称になるようにする。
-        // 3 つの「Snap & center」ボタン(Dashed / Diamond の LineStyle、路面凹凸舗装、レーン山形マーカー)から
+        // 3 つの「Snap & center」ボタン(Dashed / Diamond の LineStyle、減速帯、レーン山形マーカー)から
         // 共有される。
         private static void SnapAndCenter(SerializedProperty sizeProp, SerializedProperty spacingProp, SerializedProperty offsetProp, float tileLength, float minSpacing)
         {
@@ -929,13 +929,13 @@ namespace MitarashiDango.RoadAssetGenerator
             var diamondSizeField    = AddBoundFloat(section, styleProp, "diamondSizeMeters",    "Diamond Size (m)");
             var diamondSpacingField = AddBoundFloat(section, styleProp, "diamondSpacingMeters", "Diamond Spacing (m)");
             AddBoundFloat(section, styleProp, "diamondSlantMeters", "Diamond Slant (m)",
-                "Top/bottom U-axis offset of the parallelogram. Positive leans right, negative leans left, 0 gives a thick rectangle.");
+                "平行四辺形の上下端の U 軸方向オフセット。正値で右へ傾き、負値で左へ傾く。0 で太い長方形。");
             AddBoundFloat(section, styleProp, "paintHeightFactor", "Paint Height Factor",
-                "Per-stroke paint thickness contribution to the normal map. 0 = flat, 1 = standard, > 1 = thicker. Modulated by Weathering.PaintHeightStrength and Line Edge Wear.");
+                "このストロークの法線マップへの塗装高さ寄与倍率。0 = 平坦、1 = 標準、>1 = より厚塗り。Weathering.PaintHeightStrength と Line Edge Wear で全体スケールが調整される。");
 
             var (tileWarn, snapBtn) = AddTileWarnAndSnap(section,
                 "Snap & center pattern",
-                "Adjust spacing so the period divides the texture tile evenly, and set the phase offset so the pattern is centered (half-gap padding on each tile boundary).",
+                "ストローク周期がタイル長を整数等分するように spacing を補正し、タイル境界に均等配置されるよう phase offset を再センタリング。",
                 () => SnapLineStyleToTile(styleProp));
 
             void UpdateTileWarning() => UpdateLineStyleTileWarning(styleProp, tileWarn, snapBtn);

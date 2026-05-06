@@ -5,7 +5,7 @@ namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
     /// 路面の Albedo マップを構築する。アスファルトのベース色、肩部のティント、レーン色、
-    /// 微細ノイズ、タイヤ跡、路面凹凸舗装・境界線ストローク・補修パッチのスタンプを統合する。
+    /// 微細ノイズ、タイヤ跡、減速帯・境界線ストローク・補修パッチのスタンプを統合する。
     /// </summary>
     internal static class AlbedoBuilder
     {
@@ -96,7 +96,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 }
             }
 
-            // 路面凹凸舗装と境界線ストロークはアスファルトの上から重ね描きする。
+            // 減速帯と境界線ストロークはアスファルトの上から重ね描きする。
             StampRumbleStrips(pixels, in ctx, laneRanges, seed + 350);
             StampStrokes(pixels, W, H, strokes, config.weathering.lineWear, config.weathering.lineFade, wearMap, config.weathering.tireTrackMarkingWearStrength, seed + 400);
 

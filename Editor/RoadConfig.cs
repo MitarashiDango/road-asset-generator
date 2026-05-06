@@ -177,7 +177,7 @@ namespace MitarashiDango.RoadAssetGenerator
         public Color surfaceTintColor = new Color(0.55f, 0.20f, 0.18f);
         [Range(0f, 1f)] public float surfaceTintStrength = 0.7f;
 
-        // ---- 路面凹凸舗装 (Rumble strips) ----
+        // ---- 減速帯 (Rumble strips) ----
         public bool rumbleStrip = false;
         [Min(0.05f)] public float rumbleStripWidthMeters = 0.30f;
         [Min(0.1f)]  public float rumbleStripSpacingMeters = 1.0f;
@@ -187,7 +187,7 @@ namespace MitarashiDango.RoadAssetGenerator
         public float rumbleStripStartOffsetMeters = 0.5f;
         // 区画線と帯が重ならないようにするための、レーン端からの U 軸方向のインセット。
         [Min(0f)] public float rumbleStripInsetMeters = 0.20f;
-        // 路面凹凸舗装は細い区画線より厚塗りされる傾向にあるため、既定 1.5 倍。
+        // 減速帯は細い区画線より厚塗りされる傾向にあるため、既定 1.5 倍。
         [Min(0f)] public float rumbleStripPaintHeightFactor = 1.5f;
 
         // ---- 減速ドットライン (Speed Reduction Dot Line) ----
