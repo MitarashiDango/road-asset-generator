@@ -35,6 +35,15 @@ Unity Editor の Package Manager から GUI 操作のみでインストールで
 "com.matcha-soft.road-asset-generator": "https://github.com/MitarashiDango/road-asset-generator.git"
 ```
 
+### VRChat Creator Companion (VCC) 経由
+
+本パッケージは VRChat 専用ではないため上記の Package Manager 経由でのインストールが基本ですが、
+VRChat Creator Companion (VCC) を既に利用している環境向けに VPM リポジトリからのインストールにも対応しています。
+
+1. VCC の設定画面でパッケージリポジトリを追加
+   - リポジトリ URL: `https://vpm.matcha-soft.com/repos.json`
+2. プロジェクトの Manage Project 画面で `Road Asset Generator` を Add
+
 ## クイックスタート
 
 1. メニュー `Tools > Road Asset Generator > Open Window` でウィンドウを開く
