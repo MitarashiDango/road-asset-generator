@@ -267,6 +267,7 @@ namespace MitarashiDango.RoadAssetGenerator
             BuildLaneTintSection(foldout, laneProp);
             BuildLaneRumbleSection(foldout, laneProp);
             BuildLaneSpeedReductionDotLineSection(foldout, laneProp);
+            BuildLaneDecelerationMarkSection(foldout, laneProp);
 
             return wrapper;
         }
@@ -392,6 +393,59 @@ namespace MitarashiDango.RoadAssetGenerator
             void UpdateVisibility()
             {
                 var on = laneProp.FindPropertyRelative("speedReductionDotLine").boolValue;
+                detailGroup.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
+                UpdateTileWarning();
+            }
+
+            UpdateVisibility();
+            enableToggle.RegisterValueChangedCallback(_ => UpdateVisibility());
+            heightField.RegisterValueChangedCallback(_ => UpdateTileWarning());
+            spacingField.RegisterValueChangedCallback(_ => UpdateTileWarning());
+            snapBtn.clicked += UpdateTileWarning;
+
+            TrackTileLengthChange(section, laneProp.serializedObject, UpdateTileWarning);
+
+            parent.Add(section);
+        }
+
+        private void BuildLaneDecelerationMarkSection(Foldout parent, SerializedProperty laneProp)
+        {
+            var section = NewLaneSubSection("Deceleration Marks (減速マーク / 山形マーク)");
+
+            var enableToggle = new Toggle("Enable");
+            enableToggle.tooltip = "急カーブや追突事故多発区間など、減速を要する区間およびその手前に設置される塗装路面標示。レーン中央に進行方向を指す V 字型のマークを周期的に配置する。";
+            enableToggle.BindProperty(laneProp.FindPropertyRelative("decelerationMark"));
+            section.Add(enableToggle);
+
+            var detailGroup = new VisualElement();
+
+            AddBoundColor(detailGroup, laneProp, "decelerationMarkColor", "Mark Color");
+            AddBoundFloat(detailGroup, laneProp, "decelerationMarkWidthMeters", "Mark Width (m)",
+                "U 軸方向の V 字の開口幅。レーン幅 - 2*Edge Inset を超える場合は自動でクリップされる。");
+            var heightField = AddBoundFloat(detailGroup, laneProp, "decelerationMarkHeightMeters", "Mark Height (m)",
+                "V 軸方向の V 字 1 つ分の高さ (深さ)。");
+            var spacingField = AddBoundFloat(detailGroup, laneProp, "decelerationMarkSpacingMeters", "Mark Spacing (m)",
+                "V 字マーク間の V 軸方向ギャップ。");
+            AddBoundFloat(detailGroup, laneProp, "decelerationMarkThicknessMeters", "Line Thickness (m)",
+                "V 字を構成する線の太さ (足元の垂直エッジの V 軸方向長さ)。Mark Height に対する比率として正規化される。");
+            AddBoundFloat(detailGroup, laneProp, "decelerationMarkInsetMeters", "Edge Inset (m)",
+                "レーン端から V 字の最も外側までの距離。区画線と重ならないようにするためのマージン。");
+            AddBoundFloat(detailGroup, laneProp, "decelerationMarkStartOffsetMeters", "Start Offset (m)",
+                "V 軸方向の位相オフセット (1 周期内)。");
+            AddBoundFloat(detailGroup, laneProp, "decelerationMarkPaintHeightFactor", "Paint Height Factor",
+                "減速マーク塗装の法線マップへの寄与倍率。Weathering.PaintHeightStrength と Line Edge Wear で全体スケールが調整される。");
+
+            var (tileWarn, snapBtn) = AddTileWarnAndSnap(detailGroup,
+                "Snap & center pattern",
+                "Adjust mark spacing so the period divides the texture tile evenly, and set the start offset so marks are centered (half-gap on each tile boundary).",
+                () => SnapDecelerationMarkToTile(laneProp));
+
+            section.Add(detailGroup);
+
+            void UpdateTileWarning() => UpdateDecelerationMarkTileWarning(laneProp, tileWarn, snapBtn);
+            void UpdateVisibility()
+            {
+                var on = laneProp.FindPropertyRelative("decelerationMark").boolValue;
                 detailGroup.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
                 UpdateTileWarning();
             }
@@ -822,6 +876,22 @@ namespace MitarashiDango.RoadAssetGenerator
                 minSpacing: 0.1f);
         }
 
+        private void SnapDecelerationMarkToTile(SerializedProperty laneProp)
+        {
+            var tileProp = GetTileLengthProp(laneProp.serializedObject);
+            if (tileProp == null)
+            {
+                return;
+            }
+            // decelerationMarkSpacingMeters は RoadConfig.cs 側で [Min(0.5f)]。
+            SnapAndCenter(
+                laneProp.FindPropertyRelative("decelerationMarkHeightMeters"),
+                laneProp.FindPropertyRelative("decelerationMarkSpacingMeters"),
+                laneProp.FindPropertyRelative("decelerationMarkStartOffsetMeters"),
+                tileProp.floatValue,
+                minSpacing: 0.5f);
+        }
+
         private VisualElement BuildLineStyleSection(string label, SerializedProperty styleProp)
         {
             var section = new VisualElement();
@@ -1011,6 +1081,34 @@ namespace MitarashiDango.RoadAssetGenerator
                 var period = h + sp;
                 ApplyTileWarning(tileWarn, snapBtn, true,
                     $"Tile length ({tile:F1}m) is not an integer multiple of dot period ({period:F2}m). Pattern will tear when tiled.");
+            }
+        }
+
+        private static void UpdateDecelerationMarkTileWarning(SerializedProperty laneProp, HelpBox tileWarn, Button snapBtn)
+        {
+            if (!laneProp.FindPropertyRelative("decelerationMark").boolValue)
+            {
+                ApplyTileWarning(tileWarn, snapBtn, false, null);
+                return;
+            }
+            var tileProp = GetTileLengthProp(laneProp.serializedObject);
+            if (tileProp == null)
+            {
+                ApplyTileWarning(tileWarn, snapBtn, false, null);
+                return;
+            }
+            var tile = tileProp.floatValue;
+            var h = laneProp.FindPropertyRelative("decelerationMarkHeightMeters").floatValue;
+            var sp = laneProp.FindPropertyRelative("decelerationMarkSpacingMeters").floatValue;
+            if (TileLengthMatches(h, sp, tile))
+            {
+                ApplyTileWarning(tileWarn, snapBtn, false, null);
+            }
+            else
+            {
+                var period = h + sp;
+                ApplyTileWarning(tileWarn, snapBtn, true,
+                    $"Tile length ({tile:F1}m) is not an integer multiple of mark period ({period:F2}m). Pattern will tear when tiled.");
             }
         }
 
