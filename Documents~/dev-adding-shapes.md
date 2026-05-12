@@ -104,6 +104,8 @@ namespace MitarashiDango.RoadAssetGenerator
 | `EllipsePrimitive` | `u^2 + (2(v-0.5))^2 <= 1` | 1.0 | true |
 | `TrianglePrimitive` | `|u| <= 1 - v` | 1.0 | true |
 | `ParallelogramPrimitive` | `|u - shear*(v-0.5)| <= 1` | 1.0 + \|shear\|*0.5 | true |
+| `TextureMaskPrimitive` | グレースケールテクスチャのサンプリング値 >= threshold | テクスチャから自動算出 | true |
+| `PolygonPrimitive` | Winding Number ≠ 0 (多角形の内外判定) | 全頂点の \|u\| の最大値 | true |
 
 ## 使い方
 
@@ -131,3 +133,148 @@ var unionShape = new UnionShape(
   三角関数や平方根の使用は最小限に留め、可能なら二乗比較を使います。
 - `duNorm` は Baker が `duNorm * halfWidthPx` でピクセル空間に逆変換します。
   中心 (u=0) で `duNorm = 0`、端 (u=+/-1) で `duNorm = +/-1` が基本です。
+
+---
+
+## テクスチャマスクで図形を定義する
+
+数式でプリミティブを実装する代わりに、グレースケールテクスチャで図形を定義できます。
+`TextureMaskPrimitive` は他のプリミティブ（Rectangle, Ellipse 等）と同列の `IShapePrimitive` 実装であり、
+`MarkingPattern` や合成シェイプ（`UnionShape` 等）と自由に組み合わせて使用できます。
+
+### テクスチャの仕様
+
+| 項目 | 内容 |
+|---|---|
+| 形式 | 任意サイズの PNG（推奨 64×64 〜 128×128） |
+| 色 | 白 (1.0) = 内部、黒 (0.0) = 外部 |
+| 座標系 | テクスチャ左端が u = -1、右端が u = +1、下端が v = 0、上端が v = 1 |
+
+テクスチャの各ピクセルのグレースケール値が **threshold**（デフォルト 0.5）以上であれば「図形の内部」と判定されます。
+テクスチャの Read/Write 設定は問いません。読み取り不可テクスチャも `FromTexture()` が内部で自動対応します。
+
+### 補間アルゴリズムの選び方
+
+`TextureMaskSampling` enum で補間方式を指定します。
+
+| 方式 | 特徴 | 適したケース |
+|---|---|---|
+| **Bilinear** | 4 テクセルの線形補間。高速 | 十分な解像度のテクスチャ、直線が多い図形 |
+| **Bicubic** | 16 テクセルの Catmull-Rom 補間。滑らか | 低解像度テクスチャ、曲線が多い図形 |
+
+### 使い方
+
+`TextureMaskPrimitive.FromTexture()` ファクトリメソッドで `Texture2D` から直接生成できます。
+
+```csharp
+// テクスチャマスクを MarkingPattern と組み合わせる例
+var primitive = TextureMaskPrimitive.FromTexture(myTexture, threshold: 0.5f, TextureMaskSampling.Bilinear);
+var shape = new MarkingPattern(primitive, sizePx: 60f, gapPx: 40f, offsetPx: 0f);
+```
+
+`float[]` を直接渡すコンストラクタも利用可能です。
+
+```csharp
+// 事前に抽出済みのピクセルデータを渡す場合
+var primitive = new TextureMaskPrimitive(pixels, width, height, threshold: 0.5f, TextureMaskSampling.Bicubic);
+```
+
+---
+
+## 多角形ポリゴンで図形を定義する
+
+`PolygonPrimitive` を使用すると、多角形の頂点データで図形を定義できます。
+テクスチャマスクとは異なり、パラメータによる頂点の変形が可能で、穴（ホール）のある複合図形もサポートします。
+
+### データ構造
+
+`PolygonData` は以下の要素で構成されます:
+
+| 要素 | 説明 |
+|---|---|
+| `PolygonRing` | 閉じた多角形リング。CCW (反時計回り) = 外周、CW (時計回り) = 穴 |
+| `PolygonVertex` | 名前付き頂点。position は正規化座標 u[-1,+1], v[0,1] |
+| `PolygonEdge` | 辺タイプ。現在は Linear のみ。将来ベジェ等に拡張可能 |
+| `VertexGroup` | BlendShape ライクな頂点グループ。weight × delta の加算で頂点を変形 |
+
+### 座標系
+
+テクスチャマスクと同じ正規化座標系を使用します:
+
+- **u 軸**: 道路の横方向。中心が `0`、標準幅端が `+1` / `-1`。
+- **v 軸**: 道路の縦方向。`0` がマーク先頭、`1` がマーク末尾。
+
+### 巻き方向の規約
+
+- **CCW (反時計回り)**: 外周ポリゴンを定義します。
+- **CW (時計回り)**: 穴（ホール）を定義します。
+
+Winding Number アルゴリズムにより、外周の内部かつ穴の外部にある点のみが「図形の内部」と判定されます。
+
+### 頂点グループ（BlendShape ライク）
+
+各頂点グループは名前とデルタ（オフセット）のリストを持ちます。
+`MarkingShape` クラスから weight を指定して適用することで、図形の形状をパラメトリックに制御できます。
+
+```
+最終位置 = 基本位置 + Σ(weight_i × delta_i)
+```
+
+頂点はすべて文字列名で参照されるため、頂点の挿入・削除に対して安定です。
+
+### 使い方
+
+```csharp
+// PolygonData をコードで定義する例
+var data = new PolygonData();
+var ring = new PolygonRing { label = "Arrow" };
+ring.vertices.Add(new PolygonVertex("tip", new Vector2(0f, 0f)));
+ring.vertices.Add(new PolygonVertex("right", new Vector2(1f, 0.5f)));
+ring.vertices.Add(new PolygonVertex("notch", new Vector2(0f, 0.3f)));
+ring.vertices.Add(new PolygonVertex("left", new Vector2(-1f, 0.5f)));
+ring.EnsureEdgeCount();
+data.rings.Add(ring);
+
+// PolygonPrimitive を MarkingPattern と組み合わせる
+var primitive = PolygonPrimitive.FromData(data);
+var shape = new MarkingPattern(primitive, sizePx: 60f, gapPx: 40f, offsetPx: 0f);
+```
+
+```csharp
+// PolygonDataAsset から生成し、頂点グループを適用する例
+var weights = new Dictionary<string, float> { { "Wide", 0.5f } };
+var primitive = PolygonPrimitive.FromData(asset.data, weights);
+```
+
+### PolygonDataAsset の編集
+
+`PolygonDataAsset` は ScriptableObject としてプロジェクトに保存できます。
+
+- **作成**: Project ウィンドウで右クリック → Create → Road Asset Generator → Polygon Shape
+- **編集**: メニュー Tools → Road Asset Generator → Polygon Editor でビジュアルエディタを開く
+
+エディタ機能:
+- キャンバス上で頂点をドラッグして移動
+- 右クリックで頂点の追加
+- Delete キーで選択頂点の削除
+- プリセット形状（三角形、矩形、穴）の追加
+- 頂点グループの編集とプレビュー
+
+---
+
+## 方式の比較と選び方
+
+図形プリミティブの定義には 3 つの方式があります。いずれの方式でも、`IMarkingShape` の実装（または `MarkingPattern` との組み合わせ）は別途必要です。
+
+| 観点 | コード実装 (`IShapePrimitive`) | テクスチャマスク (`TextureMaskPrimitive`) | 多角形ポリゴン (`PolygonPrimitive`) |
+|---|---|---|---|
+| 精度 | 数式どおりの正確な形状 | テクスチャ解像度に依存 | 頂点で定義された正確な形状 |
+| パフォーマンス | 通常はより高速 | バイリニア: 同等、バイキュービック: やや遅い | 頂点数に依存（少数なら高速） |
+| 図形定義のコスト | C# クラスの実装が必要 | PNG を用意するだけ | 頂点データの定義（エディタ利用可） |
+| パラメータ化 | シアー量等を引数で受け取れる | テクスチャ固定（変更には別テクスチャが必要） | 頂点グループで変形可能 |
+| 穴のサポート | 個別実装が必要 | 不可 | CW リングで自然にサポート |
+| 曲線 | 数式で自由に表現 | テクスチャで表現 | 将来の辺タイプ拡張で対応予定 |
+
+- **コード実装**: 楕円や平行四辺形など、数式で簡潔に表せる図形や、高頻度で使用する基本図形に適している。
+- **テクスチャマスク**: ロゴや複雑な曲線など、数式やポリゴンでの表現が難しい特殊形状に適している。
+- **多角形ポリゴン**: パラメータで変形する必要がある図形や、穴のある複合図形に適している。コードを書かずにビジュアルエディタで定義できる。
