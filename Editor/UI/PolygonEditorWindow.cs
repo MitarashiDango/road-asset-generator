@@ -25,6 +25,11 @@ namespace MitarashiDango.RoadAssetGenerator
         // Preview weights for vertex groups
         private readonly Dictionary<string, float> _previewWeights = new Dictionary<string, float>();
 
+        // Cache of resolved (weight-applied) vertex positions for the current frame.
+        // null when no preview weight is active; otherwise rings[ri][vi] == final position.
+        private Vector2[][] _resolvedPositions;
+        private bool _hasActiveWeights;
+
         private const float MinPixelsPerUnit = 30f;
         private const float MaxPixelsPerUnit = 800f;
         private const float VertexHandleRadius = 5f;
@@ -77,7 +82,7 @@ namespace MitarashiDango.RoadAssetGenerator
             Undo.RecordObject(currentAsset, name);
         }
 
-        private void SetDirty()
+        private void MarkDirty()
         {
             EditorUtility.SetDirty(currentAsset);
         }
@@ -93,6 +98,62 @@ namespace MitarashiDango.RoadAssetGenerator
             return state;
         }
 
+        /// <summary>
+        /// 現在の <see cref="_previewWeights"/> を <see cref="Data"/> に適用した頂点位置をキャッシュする。
+        /// 有効な weight が一つもない場合は <see cref="_resolvedPositions"/> を null にしてフォールバックする。
+        /// </summary>
+        private void UpdateResolvedPositions()
+        {
+            _hasActiveWeights = false;
+            if (Data == null)
+            {
+                _resolvedPositions = null;
+                return;
+            }
+
+            foreach (var g in Data.vertexGroups)
+            {
+                if (g == null || string.IsNullOrEmpty(g.name)) continue;
+                if (_previewWeights.TryGetValue(g.name, out var w) && !Mathf.Approximately(w, 0f))
+                {
+                    _hasActiveWeights = true;
+                    break;
+                }
+            }
+
+            if (!_hasActiveWeights)
+            {
+                _resolvedPositions = null;
+                return;
+            }
+
+            _resolvedPositions = Data.Resolve(_previewWeights).rings;
+        }
+
+        /// <summary>
+        /// 描画用の頂点位置（weight 適用後）を取得する。weight が無効な場合は基本位置を返す。
+        /// </summary>
+        private Vector2 GetDisplayPos(int ri, int vi)
+        {
+            if (_resolvedPositions != null &&
+                ri >= 0 && ri < _resolvedPositions.Length &&
+                vi >= 0 && vi < _resolvedPositions[ri].Length)
+            {
+                return _resolvedPositions[ri][vi];
+            }
+            return Data.rings[ri].vertices[vi].position;
+        }
+
+        /// <summary>
+        /// 頂点 (ri, vi) の weight 由来オフセット（解決済み位置 - 基本位置）を返す。
+        /// ドラッグ時に視覚位置をマウスに追従させるため、マウス座標からこのオフセットを引いて基本位置に書き戻す。
+        /// </summary>
+        private Vector2 GetWeightOffset(int ri, int vi)
+        {
+            if (!_hasActiveWeights) return Vector2.zero;
+            return GetDisplayPos(ri, vi) - Data.rings[ri].vertices[vi].position;
+        }
+
         // =====================================================================
         // OnGUI
         // =====================================================================
@@ -106,6 +167,8 @@ namespace MitarashiDango.RoadAssetGenerator
                 EditorGUILayout.HelpBox("PolygonDataAsset を選択または作成してください。", MessageType.Info);
                 return;
             }
+
+            UpdateResolvedPositions();
 
             var top = GUILayoutUtility.GetLastRect().yMax;
             var canvasRect = new Rect(0, top, position.width - _sidebarWidth - 4, position.height - top);
@@ -246,8 +309,8 @@ namespace MitarashiDango.RoadAssetGenerator
 
                 for (var i = 0; i < verts.Count; i++)
                 {
-                    var a = verts[i].position;
-                    var b = verts[(i + 1) % verts.Count].position;
+                    var a = GetDisplayPos(ri, i);
+                    var b = GetDisplayPos(ri, (i + 1) % verts.Count);
                     var pa = NormToGui(a.x, a.y, r);
                     var pb = NormToGui(b.x, b.y, r);
                     Handles.DrawLine(V3(pa), V3(pb));
@@ -262,7 +325,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 var ring = Data.rings[ri];
                 for (var vi = 0; vi < ring.vertices.Count; vi++)
                 {
-                    var pos = ring.vertices[vi].position;
+                    var pos = GetDisplayPos(ri, vi);
                     var gui = NormToGui(pos.x, pos.y, r);
                     var selected = ri == _selectedRing && vi == _selectedVertex;
                     Handles.color = selected ? VertexSelected : VertexNormal;
@@ -286,7 +349,8 @@ namespace MitarashiDango.RoadAssetGenerator
                 {
                     var v = ring.vertices[vi];
                     if (string.IsNullOrEmpty(v.name)) continue;
-                    var gui = NormToGui(v.position.x, v.position.y, r);
+                    var pos = GetDisplayPos(ri, vi);
+                    var gui = NormToGui(pos.x, pos.y, r);
                     var labelRect = new Rect(gui.x - 30, gui.y - 22, 60, 16);
                     EditorGUI.DrawRect(labelRect, LabelBg);
                     GUI.Label(labelRect, v.name, style);
@@ -386,9 +450,13 @@ namespace MitarashiDango.RoadAssetGenerator
                     norm = SnapToGrid(norm);
                 }
 
+                // weight プレビュー中はマウス座標が "解決済み位置" を指している扱いになる。
+                // 基本位置 = マウス座標 - weight オフセット で書き戻すと視覚位置がマウスに追従する。
+                var basePos = norm - GetWeightOffset(_selectedRing, _selectedVertex);
+
                 RecordUndo("Move Vertex");
-                Data.rings[_selectedRing].vertices[_selectedVertex].position = norm;
-                SetDirty();
+                Data.rings[_selectedRing].vertices[_selectedVertex].position = basePos;
+                MarkDirty();
                 evt.Use();
                 Repaint();
             }
@@ -442,7 +510,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 var ring = Data.rings[ri];
                 for (var vi = 0; vi < ring.vertices.Count; vi++)
                 {
-                    var pos = ring.vertices[vi].position;
+                    var pos = GetDisplayPos(ri, vi);
                     var gui = NormToGui(pos.x, pos.y, rect);
                     var d = (gui - guiPos).sqrMagnitude;
                     if (d < bestDist)
@@ -525,7 +593,7 @@ namespace MitarashiDango.RoadAssetGenerator
                     {
                         RecordUndo("Rename Ring");
                         ring.label = label;
-                        SetDirty();
+                        MarkDirty();
                     }
 
                     if (_selectedRing != ri)
@@ -554,7 +622,7 @@ namespace MitarashiDango.RoadAssetGenerator
                         RecordUndo("Reverse Ring");
                         ring.vertices.Reverse();
                         ring.EnsureEdgeCount();
-                        SetDirty();
+                        MarkDirty();
                         Repaint();
                     }
                     EditorGUILayout.EndHorizontal();
@@ -588,7 +656,7 @@ namespace MitarashiDango.RoadAssetGenerator
                     Data.rings.RemoveAt(_selectedRing);
                     _selectedRing = -1;
                     _selectedVertex = -1;
-                    SetDirty();
+                    MarkDirty();
                     Repaint();
                 }
             }
@@ -615,7 +683,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 RecordUndo("Edit Vertex");
                 vert.name = name;
                 vert.position = new Vector2(x, y);
-                SetDirty();
+                MarkDirty();
                 Repaint();
             }
 
@@ -650,7 +718,7 @@ namespace MitarashiDango.RoadAssetGenerator
                     {
                         RecordUndo("Rename Vertex Group");
                         group.name = name;
-                        SetDirty();
+                        MarkDirty();
                     }
 
                     // Preview weight slider
@@ -676,13 +744,13 @@ namespace MitarashiDango.RoadAssetGenerator
                     {
                         RecordUndo("Add Delta");
                         group.deltas.Add(new VertexDelta("", Vector2.zero));
-                        SetDirty();
+                        MarkDirty();
                     }
                     if (GUILayout.Button("Remove Group", GUILayout.Height(18)))
                     {
                         RecordUndo("Remove Vertex Group");
                         Data.vertexGroups.RemoveAt(gi);
-                        SetDirty();
+                        MarkDirty();
                         GUIUtility.ExitGUI();
                     }
                     EditorGUILayout.EndHorizontal();
@@ -697,7 +765,7 @@ namespace MitarashiDango.RoadAssetGenerator
             {
                 RecordUndo("Add Vertex Group");
                 Data.vertexGroups.Add(new VertexGroup { name = $"Group{Data.vertexGroups.Count}" });
-                SetDirty();
+                MarkDirty();
             }
         }
 
@@ -720,7 +788,7 @@ namespace MitarashiDango.RoadAssetGenerator
                     delta.vertexName = names[newIdx];
                 }
                 delta.delta = new Vector2(dx, dy);
-                SetDirty();
+                MarkDirty();
                 Repaint();
             }
 
@@ -728,7 +796,7 @@ namespace MitarashiDango.RoadAssetGenerator
             {
                 RecordUndo("Remove Delta");
                 Data.vertexGroups[gi].deltas.RemoveAt(di);
-                SetDirty();
+                MarkDirty();
                 GUIUtility.ExitGUI();
             }
 
@@ -782,7 +850,7 @@ namespace MitarashiDango.RoadAssetGenerator
             ring.vertices.Insert(insertIdx, new PolygonVertex(name, normPos));
             ring.EnsureEdgeCount();
             _selectedVertex = insertIdx;
-            SetDirty();
+            MarkDirty();
             Repaint();
         }
 
@@ -799,7 +867,7 @@ namespace MitarashiDango.RoadAssetGenerator
             {
                 _selectedVertex = ring.vertices.Count - 1;
             }
-            SetDirty();
+            MarkDirty();
         }
 
         private string GenerateVertexName()
@@ -923,7 +991,7 @@ namespace MitarashiDango.RoadAssetGenerator
             Data.rings.Add(ring);
             _selectedRing = Data.rings.Count - 1;
             _selectedVertex = -1;
-            SetDirty();
+            MarkDirty();
             Repaint();
         }
 
@@ -955,7 +1023,8 @@ namespace MitarashiDango.RoadAssetGenerator
                 return;
             }
 
-            var resolved = Data.Resolve();
+            // weight プレビュー中は変形後の形状に合わせる。
+            var resolved = Data.Resolve(_hasActiveWeights ? _previewWeights : null);
             var uRange = Mathf.Max(0.1f, resolved.maxU - resolved.minU);
             var vRange = Mathf.Max(0.1f, resolved.maxV - resolved.minV);
             _viewCenter = new Vector2(
