@@ -135,6 +135,10 @@ namespace MitarashiDango.RoadAssetGenerator
 
         private void BindToAsset(RoadConfigAsset asset)
         {
+            rootVisualElement.Unbind();
+            lanesContainer?.Clear();
+            linesContainer?.Clear();
+
             if (asset == null)
             {
                 EnsureCurrentAsset();
