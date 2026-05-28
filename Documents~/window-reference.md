@@ -387,7 +387,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 - `Mask Tiling`: enum (`StretchAlongV` / `RepeatAlongV`), default `StretchAlongV`。V 軸方向に 1 タイルへ伸ばすか、指定長で繰り返すかを選ぶ。
 - `Mask Tile Length (m)`: float, min 0.1, default 10.0。`RepeatAlongV` の繰り返し長。
 - OFF の場合はグローバルな `Weathering > Line Edge Wear` / `Line Fade` が使用される。
-- `Wear Mask` 指定時に `Override Weathering` が OFF の場合、グローバルな `Line Edge Wear` / `Line Fade` を基本劣化として使い、その上にマスク摩耗を加算する。
+- `Wear Mask` 指定時に `Override Weathering` が OFF の場合、グローバルな `Line Edge Wear` / `Line Fade` をベースの摩耗量として使い、その上にマスク摩耗を加算する。
 
 ---
 
