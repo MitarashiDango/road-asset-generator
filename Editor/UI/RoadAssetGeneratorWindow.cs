@@ -286,6 +286,31 @@ namespace MitarashiDango.RoadAssetGenerator
             boostField.BindProperty(laneProp.FindPropertyRelative("tireTrackWearBoost"));
             section.Add(boostField);
 
+            var overrideToggle = new Toggle("Override Appearance");
+            overrideToggle.tooltip = "ON にすると、このレーンだけタイヤ跡の幅・左右間隔・色・濃さを Weathering の既定値から上書きします。";
+            overrideToggle.BindProperty(laneProp.FindPropertyRelative("tireTrackOverride"));
+            section.Add(overrideToggle);
+
+            var detailGroup = new VisualElement();
+            AddBoundFloat(detailGroup, laneProp, "tireTrackWidthMeters", "Track Width (m)",
+                "タイヤ跡 1 本の見た目上のおおよその幅。内部ではこの値の 1/6 をガウシアン sigma として扱います。");
+            AddBoundFloat(detailGroup, laneProp, "tireTrackSpacingMeters", "Track Spacing (m)",
+                "左右タイヤ跡の中心間距離。現在の既定値は 1.70m です。");
+            AddBoundColor(detailGroup, laneProp, "tireTrackColor", "Track Color");
+            var opacityField = new Slider("Track Opacity", 0f, 1f) { showInputField = true };
+            opacityField.tooltip = "タイヤ跡色へのブレンド強度。摩耗強度と掛け合わせて適用されます。";
+            opacityField.BindProperty(laneProp.FindPropertyRelative("tireTrackOpacity"));
+            detailGroup.Add(opacityField);
+            section.Add(detailGroup);
+
+            void UpdateVisibility()
+            {
+                var on = laneProp.FindPropertyRelative("tireTrackOverride").boolValue;
+                detailGroup.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+            UpdateVisibility();
+            overrideToggle.RegisterValueChangedCallback(_ => UpdateVisibility());
+
             parent.Add(section);
         }
 

@@ -116,6 +116,31 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 - 全体タイヤ跡摩耗強度に加算されるレーン固有の値。実効強度は `clamp(全体値 + Wear Boost, 0, 1)`。
 - 例: 全体 0.2 + レーン 0.3 → 実効 0.5。0.0 のままなら全体値のみ適用。
 
+#### Override Appearance
+
+- bool, default false
+- ON の場合、このレーンだけタイヤ跡の見た目設定を Weathering の既定値から上書きする。
+
+#### Track Width (m)
+
+- float, min 0.05, default 1.08
+- タイヤ跡 1 本の見た目上のおおよその幅。内部では `width / 6` をガウシアン sigma として扱う。
+
+#### Track Spacing (m)
+
+- float, min 0.0, default 1.70
+- 左右タイヤ跡の中心間距離。
+
+#### Track Color
+
+- Color, default dark gray
+- タイヤ跡のブレンド先色。
+
+#### Track Opacity
+
+- float (Slider), 0.0 〜 1.0, default 0.30
+- タイヤ跡色へのブレンド強度。実際のブレンド量はタイヤ跡摩耗強度と掛け合わせられる。
+
 ---
 
 ### Surface Tint (路面色)
@@ -401,8 +426,16 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 ### Tire Track Wear
 
 - float (Slider), 0.0 〜 1.0, default 0.0
-- タイヤ跡による車線中央付近の暗化。レーン端から ±0.85 m 位置を中心としたガウシアンで適用される。
+- タイヤ跡による車線中央付近の劣化強度。左右タイヤ跡の幅・間隔・色・濃さは下記の Default Tire Track Appearance で指定する。
 - レーンごとの追加調整は `Lanes > Tire Track Wear > Wear Boost` で行う (両者の値が加算される)。
+
+### Default Tire Track Appearance
+
+- `Default Tire Track Width (m)`: float, min 0.05, default 1.08。タイヤ跡 1 本の見た目上のおおよその幅。
+- `Default Tire Track Spacing (m)`: float, min 0.0, default 1.70。左右タイヤ跡の中心間距離。
+- `Default Tire Track Color`: Color, default dark gray。タイヤ跡のブレンド先色。
+- `Default Tire Track Opacity`: float (Slider), 0.0 〜 1.0, default 0.30。タイヤ跡色へのブレンド強度。
+- レーン側の `Override Appearance` が OFF の場合、これらの既定値が使用される。
 
 ### Marking Wear from Tire Tracks
 

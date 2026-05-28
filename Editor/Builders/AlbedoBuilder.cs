@@ -28,10 +28,10 @@ namespace MitarashiDango.RoadAssetGenerator
             var bright = config.asphalt.brightSpeckAmount;
             var dark = config.asphalt.darkSpeckAmount;
 
-            float[] wearMap = null;
+            TireTrackWearData tireTrackWear = null;
             if (HasAnyTireWear(config))
             {
-                wearMap = BuildTireTrackWear(config, laneRanges, W, H, ctx.pxPerMx);
+                tireTrackWear = BuildTireTrackWear(config, laneRanges, W, H, ctx.pxPerMx);
             }
 
             var laneIndexAt = BuildLaneIndexLUT(W, laneRanges);
@@ -84,12 +84,14 @@ namespace MitarashiDango.RoadAssetGenerator
                         c.b -= 0.09f;
                     }
 
-                    if (wearMap != null)
+                    if (tireTrackWear != null)
                     {
-                        var w = wearMap[idx];
-                        c.r -= w * 0.07f;
-                        c.g -= w * 0.07f;
-                        c.b -= w * 0.07f;
+                        var blend = Mathf.Clamp01(tireTrackWear.blendMap[idx]);
+                        if (blend > 0f)
+                        {
+                            var target = tireTrackWear.ResolveColor(idx);
+                            c = Color.Lerp(c, target, blend);
+                        }
                     }
 
                     pixels[idx] = TextureUtils.ToColor32(c);
@@ -98,7 +100,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
             // 減速帯と境界線ストロークはアスファルトの上から重ね描きする。
             StampRumbleStrips(pixels, in ctx, laneRanges, seed + 350);
-            StampStrokes(pixels, W, H, strokes, config.weathering.lineWear, config.weathering.lineFade, wearMap, config.weathering.tireTrackMarkingWearStrength, seed + 400);
+            StampStrokes(pixels, W, H, strokes, config.weathering.lineWear, config.weathering.lineFade, tireTrackWear?.wearMap, config.weathering.tireTrackMarkingWearStrength, seed + 400);
 
             if (config.weathering.repairPatches && config.weathering.repairPatchCount > 0)
             {
@@ -135,14 +137,57 @@ namespace MitarashiDango.RoadAssetGenerator
             return lut;
         }
 
-        private static float[] BuildTireTrackWear(RoadConfig config, LaneRange[] laneRanges, int W, int H, float pxPerMx)
+        private sealed class TireTrackWearData
         {
-            var map = new float[W * H];
-            var globalIntensity = config.weathering.tireTrackWear;
+            public readonly float[] wearMap;
+            public readonly float[] blendMap;
+            public readonly Color32[] colorMap;
 
-            // 1 レーンに 2 本のタイヤ跡(中央から ±0.85 m、シグマ 0.18 m のガウシアン)。
-            var trackOffsetPx = 0.85f * pxPerMx;
-            var sigmaPx = Mathf.Max(1, Mathf.RoundToInt(0.18f * pxPerMx));
+            public TireTrackWearData(int length)
+            {
+                wearMap = new float[length];
+                blendMap = new float[length];
+                colorMap = new Color32[length];
+            }
+
+            public void AddTrack(int idx, float wear, float blend, Color color)
+            {
+                wearMap[idx] += wear;
+                if (blend <= 0f)
+                {
+                    return;
+                }
+
+                var oldBlend = blendMap[idx];
+                var newBlend = oldBlend + blend;
+                if (oldBlend > 0f)
+                {
+                    var current = ToColor(colorMap[idx]);
+                    colorMap[idx] = TextureUtils.ToColor32(Color.Lerp(current, color, blend / newBlend));
+                }
+                else
+                {
+                    colorMap[idx] = TextureUtils.ToColor32(color);
+                }
+                blendMap[idx] = newBlend;
+            }
+
+            public Color ResolveColor(int idx)
+            {
+                Debug.Assert(blendMap[idx] > 0f, "Tire track color should only be resolved for pixels with a positive blend weight.");
+                return ToColor(colorMap[idx]);
+            }
+
+            private static Color ToColor(Color32 c)
+            {
+                return new Color(c.r / 255f, c.g / 255f, c.b / 255f, 1f);
+            }
+        }
+
+        private static TireTrackWearData BuildTireTrackWear(RoadConfig config, LaneRange[] laneRanges, int W, int H, float pxPerMx)
+        {
+            var data = new TireTrackWearData(W * H);
+            var globalIntensity = config.weathering.tireTrackWear;
 
             for (var li = 0; li < config.lanes.Count; li++)
             {
@@ -153,29 +198,62 @@ namespace MitarashiDango.RoadAssetGenerator
                     continue;
                 }
 
+                ResolveTireTrackSettings(config, lane, out var widthMeters, out var spacingMeters, out var color, out var opacity);
+                var trackOffsetPx = spacingMeters * 0.5f * pxPerMx;
+                var sigmaPx = Mathf.Max(0.5f, widthMeters * pxPerMx / 6f);
+                var radiusPx = Mathf.CeilToInt(sigmaPx * 3f);
+
                 // 境界線スロット幅を含めた正しいレーン中央を LaneRange から取得する。
                 var range = laneRanges[li];
                 var laneCenterPx = (range.xStart + range.xEnd) * 0.5f;
 
                 for (var side = -1; side <= 1; side += 2)
                 {
-                    var trackPx = Mathf.RoundToInt(laneCenterPx + side * trackOffsetPx);
-                    for (var x = trackPx - sigmaPx * 3; x <= trackPx + sigmaPx * 3; x++)
+                    var trackPx = laneCenterPx + side * trackOffsetPx;
+                    for (var x = Mathf.FloorToInt(trackPx) - radiusPx; x <= Mathf.CeilToInt(trackPx) + radiusPx; x++)
                     {
                         if (x < 0 || x >= W)
                         {
                             continue;
                         }
-                        var dx = (x - trackPx) / (float)sigmaPx;
+                        var dx = (x - trackPx) / sigmaPx;
                         var falloff = Mathf.Exp(-dx * dx * 0.5f);
+                        var wear = falloff * laneIntensity;
+                        var blend = wear * opacity;
                         for (var y = 0; y < H; y++)
                         {
-                            map[y * W + x] += falloff * laneIntensity;
+                            var idx = y * W + x;
+                            data.AddTrack(idx, wear, blend, color);
                         }
                     }
                 }
             }
-            return map;
+            return data;
+        }
+
+        private static void ResolveTireTrackSettings(RoadConfig config, LaneConfig lane, out float widthMeters, out float spacingMeters, out Color color, out float opacity)
+        {
+            var weathering = config.weathering;
+            if (lane.tireTrackOverride)
+            {
+                widthMeters = lane.tireTrackWidthMeters;
+                spacingMeters = lane.tireTrackSpacingMeters;
+                color = lane.tireTrackColor;
+                opacity = lane.tireTrackOpacity;
+            }
+            else
+            {
+                widthMeters = weathering.defaultTireTrackWidthMeters;
+                spacingMeters = weathering.defaultTireTrackSpacingMeters;
+                color = weathering.defaultTireTrackColor;
+                opacity = weathering.defaultTireTrackOpacity;
+            }
+
+            widthMeters = Mathf.Max(0.05f, widthMeters);
+            spacingMeters = Mathf.Max(0f, spacingMeters);
+            opacity = Mathf.Clamp01(opacity);
+            // Albedo output is opaque; ignore the UI color alpha so tire tracks only affect RGB.
+            color.a = 1f;
         }
 
         private static bool HasAnyTireWear(RoadConfig config)

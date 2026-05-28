@@ -172,6 +172,11 @@ namespace MitarashiDango.RoadAssetGenerator
         // 全体設定 (Weathering.tireTrackWear) に加算されるレーン固有の追加摩耗。
         // 例: 全体 0.2 + レーン 0.3 → このレーンの実効摩耗強度は 0.5 (clamp 1.0)。
         [Range(0f, 1f)] public float tireTrackWearBoost = 0f;
+        public bool tireTrackOverride = false;
+        [Min(0.05f)] public float tireTrackWidthMeters = 1.08f;
+        [Min(0f)] public float tireTrackSpacingMeters = 1.70f;
+        public Color tireTrackColor = new Color(0.05f, 0.05f, 0.06f);
+        [Range(0f, 1f)] public float tireTrackOpacity = 0.30f;
 
         // ---- 路面色(カーブ警戒の赤路面など) ----
         public bool surfaceTint = false;
@@ -255,11 +260,15 @@ namespace MitarashiDango.RoadAssetGenerator
         // 線の縁の摩耗。塗装高さの寄与も同時に減衰させる。
         [Range(0f, 1f)] public float lineWear = 0.15f;
         [Range(0f, 1f)] public float lineFade = 0.08f;
-        // タイヤ跡によるレーン中央の暗化。レーン毎の追加調整は LaneConfig.tireTrackWearBoost で行う。
+        // タイヤ跡によるレーン中央付近の劣化強度。レーン毎の追加調整は LaneConfig.tireTrackWearBoost で行う。
         [Range(0f, 1f)] public float tireTrackWear = 0.0f;
         // タイヤ跡が路面標示 (境界線・減速マーク等) に与える摩耗の強度。
         // 0 = 標示はタイヤ跡の影響を受けない、1 = タイヤ跡上で標示が完全に下地色にフェード。
         [Range(0f, 1f)] public float tireTrackMarkingWearStrength = 0.5f;
+        [Min(0.05f)] public float defaultTireTrackWidthMeters = 1.08f;
+        [Min(0f)] public float defaultTireTrackSpacingMeters = 1.70f;
+        public Color defaultTireTrackColor = new Color(0.05f, 0.05f, 0.06f);
+        [Range(0f, 1f)] public float defaultTireTrackOpacity = 0.30f;
         public bool repairPatches = false;
         [Range(0, 8)] public int repairPatchCount = 2;
         public bool wetSurface = false;
