@@ -9,6 +9,7 @@ namespace MitarashiDango.RoadAssetGenerator
     public enum PipelineTarget { AutoDetect, BuiltIn, URP }
     public enum TextureResolution { _512 = 512, _1024 = 1024, _2048 = 2048, _4096 = 4096 }
     public enum SpeedReductionDotLineSide { Left, Right, Both }
+    public enum WearMaskTiling { StretchAlongV, RepeatAlongV }
 
     /// <summary>
     /// レーンごとの進行方向(V 軸方向)。Forward = V+(視点 V=0 から遠ざかる方向)、
@@ -49,6 +50,10 @@ namespace MitarashiDango.RoadAssetGenerator
         public bool lineWeatheringOverride = false;
         [Range(0f, 1f)] public float wearOverrideValue = 0.15f;
         [Range(0f, 1f)] public float fadeOverrideValue = 0.08f;
+        public Texture2D wearMask;
+        [Range(0f, 1f)] public float wearMaskStrength = 1.0f;
+        public WearMaskTiling wearMaskTiling = WearMaskTiling.StretchAlongV;
+        [Min(0.1f)] public float wearMaskTileLengthMeters = 10f;
 
         public LineStyle Clone()
         {
@@ -67,6 +72,10 @@ namespace MitarashiDango.RoadAssetGenerator
                 lineWeatheringOverride = lineWeatheringOverride,
                 wearOverrideValue = wearOverrideValue,
                 fadeOverrideValue = fadeOverrideValue,
+                wearMask = wearMask,
+                wearMaskStrength = wearMaskStrength,
+                wearMaskTiling = wearMaskTiling,
+                wearMaskTileLengthMeters = wearMaskTileLengthMeters,
             };
         }
     }

@@ -39,13 +39,8 @@ namespace MitarashiDango.RoadAssetGenerator
         /// </summary>
         public static TextureMaskPrimitive FromTexture(Texture2D tex, float threshold = 0.5f, TextureMaskSampling sampling = TextureMaskSampling.Bilinear)
         {
-            var readable = EnsureReadable(tex);
-            var pixels = ExtractGrayscalePixels(readable);
-            if (readable != tex)
-            {
-                Object.DestroyImmediate(readable);
-            }
-            return new TextureMaskPrimitive(pixels, tex.width, tex.height, threshold, sampling);
+            var (pixels, width, height) = MaskTextureLoader.LoadGrayscale(tex);
+            return new TextureMaskPrimitive(pixels, width, height, threshold, sampling);
         }
 
         public bool Contains(float u, float v, out float duNorm)
@@ -164,33 +159,5 @@ namespace MitarashiDango.RoadAssetGenerator
             return center > 0f ? maxCol / center : 1f;
         }
 
-        private static float[] ExtractGrayscalePixels(Texture2D tex)
-        {
-            var colors = tex.GetPixels();
-            var result = new float[colors.Length];
-            for (var i = 0; i < colors.Length; i++)
-            {
-                result[i] = colors[i].grayscale;
-            }
-            return result;
-        }
-
-        private static Texture2D EnsureReadable(Texture2D tex)
-        {
-            if (tex.isReadable)
-            {
-                return tex;
-            }
-            var tmp = RenderTexture.GetTemporary(tex.width, tex.height, 0, RenderTextureFormat.ARGB32);
-            Graphics.Blit(tex, tmp);
-            var prev = RenderTexture.active;
-            RenderTexture.active = tmp;
-            var readable = new Texture2D(tex.width, tex.height, TextureFormat.RGBA32, false);
-            readable.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
-            readable.Apply();
-            RenderTexture.active = prev;
-            RenderTexture.ReleaseTemporary(tmp);
-            return readable;
-        }
     }
 }

@@ -12,7 +12,8 @@ namespace MitarashiDango.RoadAssetGenerator
         public static List<LineStroke> Resolve(in BakeContext ctx)
         {
             var strokes = new List<LineStroke>();
-            ResolveBoundaryStrokes(strokes, in ctx);
+            var maskCache = new Dictionary<Texture2D, (float[] pixels, int width, int height)>();
+            ResolveBoundaryStrokes(strokes, in ctx, maskCache);
             ResolveSpeedReductionDotLines(strokes, in ctx);
             ResolveDecelerationMarks(strokes, in ctx);
             return strokes;
@@ -21,7 +22,7 @@ namespace MitarashiDango.RoadAssetGenerator
         // 各境界線は隣接レーン間に専用の U 軸スロットを占有する:
         //   leftShoulder | line[0] スロット | lane[0] | line[1] スロット | lane[1] | ... | line[N] スロット | rightShoulder
         // 各境界線の配置軸はスロット左端 + leftHalf に置かれ、最左 stroke の左端がスロット左端と一致する。
-        private static void ResolveBoundaryStrokes(List<LineStroke> strokes, in BakeContext ctx)
+        private static void ResolveBoundaryStrokes(List<LineStroke> strokes, in BakeContext ctx, Dictionary<Texture2D, (float[] pixels, int width, int height)> maskCache)
         {
             var config = ctx.config;
             config.EnsureLineCount();
@@ -51,7 +52,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 var cursor = -totalSpacing * 0.5f;
                 for (var i = 0; i < styles.Count; i++)
                 {
-                    AddStrokeAt(strokes, boundaryMeters[b] + cursor, styles[i], ctx.pxPerMx, ctx.pxPerMy, ref strokeSeed);
+                    AddStrokeAt(strokes, boundaryMeters[b] + cursor, styles[i], ctx.pxPerMx, ctx.pxPerMy, ref strokeSeed, maskCache);
                     if (i < gapCount)
                     {
                         cursor += Mathf.Max(0f, gaps[i]);
@@ -100,7 +101,7 @@ namespace MitarashiDango.RoadAssetGenerator
             return total;
         }
 
-        private static void AddStrokeAt(List<LineStroke> strokes, float xMeters, LineStyle style, float pxPerMx, float pxPerMy, ref int seedCounter)
+        private static void AddStrokeAt(List<LineStroke> strokes, float xMeters, LineStyle style, float pxPerMx, float pxPerMy, ref int seedCounter, Dictionary<Texture2D, (float[] pixels, int width, int height)> maskCache)
         {
             if (style.type == LineType.None || style.widthMeters <= 0f)
             {
@@ -134,6 +135,8 @@ namespace MitarashiDango.RoadAssetGenerator
                 default:
                     return;
             }
+            ResolveWearMask(style, pxPerMy, maskCache, out var maskPixels, out var maskW, out var maskH, out var maskStrength, out var maskTileLengthPx);
+
             strokes.Add(new LineStroke
             {
                 xCenter = xCenter,
@@ -143,8 +146,52 @@ namespace MitarashiDango.RoadAssetGenerator
                 paintHeightFactor = style.paintHeightFactor,
                 wearOverride = style.lineWeatheringOverride ? style.wearOverrideValue : LineWeathering.UseGlobal,
                 fadeOverride = style.lineWeatheringOverride ? style.fadeOverrideValue : LineWeathering.UseGlobal,
+                wearMaskPixels = maskPixels,
+                wearMaskW = maskW,
+                wearMaskH = maskH,
+                wearMaskStrength = maskStrength,
+                wearMaskTiling = style.wearMaskTiling,
+                wearMaskTileLengthPx = maskTileLengthPx,
                 seed = seedCounter++,
             });
+        }
+
+        private static void ResolveWearMask(
+            LineStyle style,
+            float pxPerMy,
+            Dictionary<Texture2D, (float[] pixels, int width, int height)> maskCache,
+            out float[] maskPixels,
+            out int maskW,
+            out int maskH,
+            out float maskStrength,
+            out float maskTileLengthPx)
+        {
+            maskPixels = null;
+            maskW = 0;
+            maskH = 0;
+            maskStrength = 0f;
+            maskTileLengthPx = Mathf.Max(0.1f, style.wearMaskTileLengthMeters) * pxPerMy;
+
+            if (style.wearMask == null || style.wearMaskStrength <= 0f)
+            {
+                return;
+            }
+
+            if (!maskCache.TryGetValue(style.wearMask, out var loaded))
+            {
+                loaded = MaskTextureLoader.LoadGrayscale(style.wearMask);
+                maskCache[style.wearMask] = loaded;
+            }
+
+            if (loaded.pixels == null || loaded.width <= 0 || loaded.height <= 0)
+            {
+                return;
+            }
+
+            maskPixels = loaded.pixels;
+            maskW = loaded.width;
+            maskH = loaded.height;
+            maskStrength = Mathf.Clamp01(style.wearMaskStrength);
         }
 
         // 各レーンの speedReductionDotLine 設定から派生する Y-shear Diamond stroke を生成する。

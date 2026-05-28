@@ -32,15 +32,29 @@ namespace MitarashiDango.RoadAssetGenerator
                 {
                     continue;
                 }
-                var effectiveWear = LineWeathering.ResolveEffectiveWear(in stroke, globalWear);
-                var h = PaintHeightUnit * strength * Mathf.Clamp01(1f - effectiveWear) * stroke.paintHeightFactor;
-                if (h <= 0f)
+                if (!stroke.HasWearMask)
                 {
+                    var effectiveWear = LineWeathering.ResolveEffectiveWear(in stroke, globalWear);
+                    var h = PaintHeightUnit * strength * Mathf.Clamp01(1f - effectiveWear) * stroke.paintHeightFactor;
+                    if (h <= 0f)
+                    {
+                        continue;
+                    }
+                    StrokePixelIterator.ForEach(stroke, W, H, (x, y, idx, _, _, _) =>
+                    {
+                        heightMap[idx] += h;
+                    });
                     continue;
                 }
-                StrokePixelIterator.ForEach(stroke, W, H, (x, y, idx, _, _, _) =>
+
+                StrokePixelIterator.ForEach(stroke, W, H, (x, y, idx, duFromCenter, _, _) =>
                 {
-                    heightMap[idx] += h;
+                    var effectiveWear = LineWeathering.ResolveEffectiveWear(in stroke, globalWear, duFromCenter, y, H);
+                    var h = PaintHeightUnit * strength * Mathf.Clamp01(1f - effectiveWear) * stroke.paintHeightFactor;
+                    if (h > 0f)
+                    {
+                        heightMap[idx] += h;
+                    }
                 });
             }
 

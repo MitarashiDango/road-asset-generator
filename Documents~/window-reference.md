@@ -379,9 +379,15 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 #### Wear (劣化)
 
 - `Override Weathering`: bool, default false。ON の場合、このストロークだけ Weathering の `Line Edge Wear` / `Line Fade` を上書きする。
-- `Line Edge Wear`: float (Slider), 0.0 〜 1.0, default 0.15。ストローク単位の摩耗量。Albedo、Normal、Metallic/Smoothness に反映される。
+- `Line Edge Wear`: float (Slider), 0.0 〜 1.0, default 0.15。ストローク単位の摩耗量。Albedo、Normal、Metallic/Smoothness に反映される。`Override Weathering` が ON の場合、Albedo も摩耗量に応じて下地色へ寄る。
 - `Line Fade`: float (Slider), 0.0 〜 1.0, default 0.08。ストローク単位の色フェード量。
+- `Wear Mask`: Texture2D。グレースケール画像で、白い部分ほど追加摩耗が強くなる。Read/Write 無効のテクスチャも一時コピー経由で読み取る。
+- マスク値はテクスチャの Import Settings に従って解釈される。線形値として扱いたい場合は、マスクテクスチャの sRGB をオフにする。
+- `Mask Strength`: float (Slider), 0.0 〜 1.0, default 1.0。マスク由来の追加摩耗量。
+- `Mask Tiling`: enum (`StretchAlongV` / `RepeatAlongV`), default `StretchAlongV`。V 軸方向に 1 タイルへ伸ばすか、指定長で繰り返すかを選ぶ。
+- `Mask Tile Length (m)`: float, min 0.1, default 10.0。`RepeatAlongV` の繰り返し長。
 - OFF の場合はグローバルな `Weathering > Line Edge Wear` / `Line Fade` が使用される。
+- `Wear Mask` 指定時に `Override Weathering` が OFF の場合、グローバルな `Line Edge Wear` / `Line Fade` を基本劣化として使い、その上にマスク摩耗を加算する。
 
 ---
 
