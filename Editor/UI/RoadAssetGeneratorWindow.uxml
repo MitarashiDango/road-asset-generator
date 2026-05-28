@@ -100,6 +100,10 @@
         <engine:Slider label="Line Fade"        binding-path="config.weathering.lineFade"        low-value="0" high-value="1" show-input-field="true" />
         <engine:Slider label="Tire Track Wear"  binding-path="config.weathering.tireTrackWear"  low-value="0" high-value="1" show-input-field="true" tooltip="路面全体に適用される基本タイヤ跡摩耗。各車線の Tire Track Wear Boost と加算される。" />
         <engine:Slider label="Marking Wear from Tire Tracks" binding-path="config.weathering.tireTrackMarkingWearStrength" low-value="0" high-value="1" show-input-field="true" tooltip="タイヤ跡の上にある路面標示 (境界線・減速マーク・ドットライン等) を下地色に寄せて摩耗表現する強度。0 = 影響なし、1 = 完全フェード。" />
+        <engine:FloatField label="Default Tire Track Width (m)" binding-path="config.weathering.defaultTireTrackWidthMeters" tooltip="レーン側の Override Appearance が OFF のときに使う、タイヤ跡 1 本の見た目上のおおよその幅。" />
+        <engine:FloatField label="Default Tire Track Spacing (m)" binding-path="config.weathering.defaultTireTrackSpacingMeters" tooltip="レーン側の Override Appearance が OFF のときに使う、左右タイヤ跡の中心間距離。" />
+        <editor:ColorField label="Default Tire Track Color" binding-path="config.weathering.defaultTireTrackColor" />
+        <engine:Slider label="Default Tire Track Opacity" binding-path="config.weathering.defaultTireTrackOpacity" low-value="0" high-value="1" show-input-field="true" tooltip="レーン側の Override Appearance が OFF のときに使う、タイヤ跡色へのブレンド強度。" />
         <engine:Slider label="Paint Height Strength" binding-path="config.weathering.paintHeightStrength" low-value="0" high-value="3" show-input-field="true" tooltip="塗装マークの法線マップへの全体高さ寄与倍率。0 で塗装の凸なし、1 で標準厚、それ以上で厚塗り。" />
         <engine:Toggle label="Repair Patches"   binding-path="config.weathering.repairPatches" />
         <engine:SliderInt label="Patch Count"   binding-path="config.weathering.repairPatchCount" low-value="1" high-value="8" show-input-field="true" />
