@@ -963,7 +963,8 @@ namespace MitarashiDango.RoadAssetGenerator
                 "このストロークの法線マップへの塗装高さ寄与倍率。0 = 平坦、1 = 標準、>1 = より厚塗り。Weathering.PaintHeightStrength と Line Edge Wear で全体スケールが調整される。");
 
             var weatheringOverrideProp = styleProp.FindPropertyRelative("lineWeatheringOverride");
-            var wearFoldout = new Foldout { text = "Wear (劣化)", value = weatheringOverrideProp.boolValue };
+            var maskProp = styleProp.FindPropertyRelative("wearMask");
+            var wearFoldout = new Foldout { text = "Wear (劣化)", value = weatheringOverrideProp.boolValue || maskProp.objectReferenceValue != null };
             var overrideToggle = new Toggle("Override Weathering");
             overrideToggle.tooltip = "ON にすると、このストロークだけ Weathering の Line Edge Wear / Line Fade を上書きします。";
             overrideToggle.BindProperty(weatheringOverrideProp);
@@ -980,6 +981,29 @@ namespace MitarashiDango.RoadAssetGenerator
             fadeSlider.BindProperty(styleProp.FindPropertyRelative("fadeOverrideValue"));
             wearDetailGroup.Add(fadeSlider);
             wearFoldout.Add(wearDetailGroup);
+
+            var maskField = new ObjectField("Wear Mask")
+            {
+                objectType = typeof(Texture2D),
+                allowSceneObjects = false,
+                tooltip = "白い部分ほど、このストロークの塗装摩耗が強くなります。"
+            };
+            maskField.BindProperty(maskProp);
+            wearFoldout.Add(maskField);
+
+            var maskDetailGroup = new VisualElement();
+            var maskStrengthSlider = new Slider("Mask Strength", 0f, 1f) { showInputField = true };
+            maskStrengthSlider.BindProperty(styleProp.FindPropertyRelative("wearMaskStrength"));
+            maskDetailGroup.Add(maskStrengthSlider);
+
+            var maskTilingField = AddBoundEnum(maskDetailGroup, styleProp, "wearMaskTiling", "Mask Tiling");
+            var maskTileLengthField = AddBoundFloat(maskDetailGroup, styleProp, "wearMaskTileLengthMeters", "Mask Tile Length (m)");
+            wearFoldout.Add(maskDetailGroup);
+
+            var maskWarning = new HelpBox(
+                "Override Weathering が OFF のため、Wear Mask は Weathering の Line Edge Wear をベースの摩耗量として使います。マスクだけで摩耗させたい場合は ON にして、このストロークの Line Edge Wear を 0 にしてください。",
+                HelpBoxMessageType.Info);
+            wearFoldout.Add(maskWarning);
             section.Add(wearFoldout);
 
             var (tileWarn, snapBtn) = AddTileWarnAndSnap(section,
@@ -991,7 +1015,12 @@ namespace MitarashiDango.RoadAssetGenerator
             void UpdateWearVisibility()
             {
                 var overrideOn = weatheringOverrideProp.boolValue;
+                var hasMask = maskField.value != null || maskProp.objectReferenceValue != null;
+                var repeatMask = (WearMaskTiling)styleProp.FindPropertyRelative("wearMaskTiling").enumValueIndex == WearMaskTiling.RepeatAlongV;
                 wearDetailGroup.style.display = overrideOn ? DisplayStyle.Flex : DisplayStyle.None;
+                maskDetailGroup.style.display = hasMask ? DisplayStyle.Flex : DisplayStyle.None;
+                maskTileLengthField.style.display = hasMask && repeatMask ? DisplayStyle.Flex : DisplayStyle.None;
+                maskWarning.style.display = hasMask && !overrideOn ? DisplayStyle.Flex : DisplayStyle.None;
             }
             void UpdateVisibility()
             {
@@ -1014,6 +1043,8 @@ namespace MitarashiDango.RoadAssetGenerator
             UpdateVisibility();
             typeField.RegisterValueChangedCallback(_ => UpdateVisibility());
             overrideToggle.RegisterValueChangedCallback(_ => UpdateWearVisibility());
+            maskField.RegisterValueChangedCallback(_ => UpdateWearVisibility());
+            maskTilingField.RegisterValueChangedCallback(_ => UpdateWearVisibility());
             dashLengthField.RegisterValueChangedCallback(_ => UpdateTileWarning());
             dashGapField.RegisterValueChangedCallback(_ => UpdateTileWarning());
             diamondSizeField.RegisterValueChangedCallback(_ => UpdateTileWarning());
@@ -1627,8 +1658,9 @@ namespace MitarashiDango.RoadAssetGenerator
 
         private static RoadConfig JsonClone(RoadConfig c)
         {
-            var json = JsonUtility.ToJson(c);
-            return JsonUtility.FromJson<RoadConfig>(json);
+            var clone = new RoadConfig();
+            EditorJsonUtility.FromJsonOverwrite(EditorJsonUtility.ToJson(c), clone);
+            return clone;
         }
 
         private void OnDisable()

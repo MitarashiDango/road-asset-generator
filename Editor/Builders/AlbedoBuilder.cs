@@ -313,8 +313,12 @@ namespace MitarashiDango.RoadAssetGenerator
                 var localFade = LineWeathering.ResolveFade(in s, fade);
                 StrokePixelIterator.ForEach(s, W, H, (x, y, idx, duFromCenter, xStart, xEnd) =>
                 {
+                    var effectiveWear = LineWeathering.ResolveEffectiveWear(in s, wear, duFromCenter, y, H);
+                    var bgWear = s.HasWearMask
+                        ? Mathf.Max(0f, effectiveWear - localWear)
+                        : (s.wearOverride >= 0f ? localWear : 0f);
                     var noise = (float)(rng.NextDouble() * 2.0 - 1.0);
-                    var wearFactor = 1f - localWear * 0.5f * Mathf.Abs(noise);
+                    var wearFactor = 1f - effectiveWear * 0.5f * Mathf.Abs(noise);
                     var c = s.color * wearFactor;
                     var src = pixels[idx];
                     var bg = new Color(src.r / 255f, src.g / 255f, src.b / 255f);
@@ -340,8 +344,13 @@ namespace MitarashiDango.RoadAssetGenerator
                         if (localTireWear > 0f)
                         {
                             var fadeT = localTireWear * markingWearStrength;
-                            c = Color.Lerp(c, bg, fadeT);
+                            bgWear = Mathf.Clamp01(bgWear + fadeT);
                         }
+                    }
+
+                    if (bgWear > 0f)
+                    {
+                        c = Color.Lerp(c, bg, bgWear);
                     }
 
                     pixels[idx] = TextureUtils.ToColor32(c);

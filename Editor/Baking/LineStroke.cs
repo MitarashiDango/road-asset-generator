@@ -12,6 +12,17 @@ namespace MitarashiDango.RoadAssetGenerator
         public float paintHeightFactor;
         public float wearOverride;
         public float fadeOverride;
+        public float[] wearMaskPixels;
+        public int wearMaskW;
+        public int wearMaskH;
+        public float wearMaskStrength;
+        public WearMaskTiling wearMaskTiling;
+        public float wearMaskTileLengthPx;
         public int seed;
+
+        public bool HasWearMask => wearMaskPixels != null
+            && wearMaskW > 0
+            && wearMaskH > 0
+            && wearMaskStrength > 0f;
     }
 }

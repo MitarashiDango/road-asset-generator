@@ -51,9 +51,19 @@ namespace MitarashiDango.RoadAssetGenerator
 
             foreach (var stroke in strokes)
             {
-                var effectiveWear = LineWeathering.ResolveEffectiveWear(in stroke, config.weathering.lineWear);
-                StrokePixelIterator.ForEach(stroke, W, H, (x, y, idx, _, _, _) =>
+                if (!stroke.HasWearMask)
                 {
+                    var effectiveWear = LineWeathering.ResolveEffectiveWear(in stroke, config.weathering.lineWear);
+                    StrokePixelIterator.ForEach(stroke, W, H, (x, y, idx, _, _, _) =>
+                    {
+                        pixels[idx].a = (byte)Mathf.RoundToInt(Mathf.Lerp(lineSmooth, preStrokeSmoothness[idx], effectiveWear));
+                    });
+                    continue;
+                }
+
+                StrokePixelIterator.ForEach(stroke, W, H, (x, y, idx, duFromCenter, _, _) =>
+                {
+                    var effectiveWear = LineWeathering.ResolveEffectiveWear(in stroke, config.weathering.lineWear, duFromCenter, y, H);
                     pixels[idx].a = (byte)Mathf.RoundToInt(Mathf.Lerp(lineSmooth, preStrokeSmoothness[idx], effectiveWear));
                 });
             }
