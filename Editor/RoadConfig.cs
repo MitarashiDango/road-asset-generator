@@ -44,6 +44,12 @@ namespace MitarashiDango.RoadAssetGenerator
         /// </summary>
         [Min(0f)] public float paintHeightFactor = 1.0f;
 
+        // ---- Stroke weathering override ----
+        // OFF の場合は WeatheringConfig.lineWear / lineFade を使用する。
+        public bool lineWeatheringOverride = false;
+        [Range(0f, 1f)] public float wearOverrideValue = 0.15f;
+        [Range(0f, 1f)] public float fadeOverrideValue = 0.08f;
+
         public LineStyle Clone()
         {
             return new LineStyle
@@ -58,6 +64,9 @@ namespace MitarashiDango.RoadAssetGenerator
                 diamondSpacingMeters = diamondSpacingMeters,
                 diamondSlantMeters = diamondSlantMeters,
                 paintHeightFactor = paintHeightFactor,
+                lineWeatheringOverride = lineWeatheringOverride,
+                wearOverrideValue = wearOverrideValue,
+                fadeOverrideValue = fadeOverrideValue,
             };
         }
     }

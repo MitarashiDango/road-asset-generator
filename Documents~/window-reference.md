@@ -376,6 +376,13 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 - float, ≥0.0, default 1.0
 - 法線マップへの塗装高さ寄与の倍率。
 
+#### Wear (劣化)
+
+- `Override Weathering`: bool, default false。ON の場合、このストロークだけ Weathering の `Line Edge Wear` / `Line Fade` を上書きする。
+- `Line Edge Wear`: float (Slider), 0.0 〜 1.0, default 0.15。ストローク単位の摩耗量。Albedo、Normal、Metallic/Smoothness に反映される。
+- `Line Fade`: float (Slider), 0.0 〜 1.0, default 0.08。ストローク単位の色フェード量。
+- OFF の場合はグローバルな `Weathering > Line Edge Wear` / `Line Fade` が使用される。
+
 ---
 
 ## Asphalt (路面)

@@ -43,11 +43,18 @@ namespace MitarashiDango.RoadAssetGenerator
                 });
             }
 
+            var preStrokeSmoothness = new byte[pixels.Length];
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                preStrokeSmoothness[i] = pixels[i].a;
+            }
+
             foreach (var stroke in strokes)
             {
+                var effectiveWear = LineWeathering.ResolveEffectiveWear(in stroke, config.weathering.lineWear);
                 StrokePixelIterator.ForEach(stroke, W, H, (x, y, idx, _, _, _) =>
                 {
-                    pixels[idx].a = lineSmooth;
+                    pixels[idx].a = (byte)Mathf.RoundToInt(Mathf.Lerp(lineSmooth, preStrokeSmoothness[idx], effectiveWear));
                 });
             }
             return pixels;

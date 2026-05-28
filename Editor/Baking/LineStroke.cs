@@ -10,6 +10,8 @@ namespace MitarashiDango.RoadAssetGenerator
         public IMarkingShape shape;
         public Color color;
         public float paintHeightFactor;
+        public float wearOverride;
+        public float fadeOverride;
         public int seed;
     }
 }

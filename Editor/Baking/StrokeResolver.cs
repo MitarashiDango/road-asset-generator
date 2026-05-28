@@ -141,6 +141,8 @@ namespace MitarashiDango.RoadAssetGenerator
                 shape = shape,
                 color = style.color,
                 paintHeightFactor = style.paintHeightFactor,
+                wearOverride = style.lineWeatheringOverride ? style.wearOverrideValue : LineWeathering.UseGlobal,
+                fadeOverride = style.lineWeatheringOverride ? style.fadeOverrideValue : LineWeathering.UseGlobal,
                 seed = seedCounter++,
             });
         }
@@ -210,6 +212,8 @@ namespace MitarashiDango.RoadAssetGenerator
                     lane.speedReductionDotLineSlantMeters * slantSign * directionSign * pxPerMy),
                 color = lane.speedReductionDotLineColor,
                 paintHeightFactor = lane.speedReductionDotLinePaintHeightFactor,
+                wearOverride = LineWeathering.UseGlobal,
+                fadeOverride = LineWeathering.UseGlobal,
                 seed = seedCounter++,
             });
         }
@@ -285,6 +289,8 @@ namespace MitarashiDango.RoadAssetGenerator
                 shape = shape,
                 color = lane.decelerationMarkColor,
                 paintHeightFactor = lane.decelerationMarkPaintHeightFactor,
+                wearOverride = LineWeathering.UseGlobal,
+                fadeOverride = LineWeathering.UseGlobal,
                 seed = seedCounter++,
             });
         }

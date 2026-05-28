@@ -16,14 +16,13 @@ namespace MitarashiDango.RoadAssetGenerator
         public static void Apply(float[] heightMap, in BakeContext ctx, List<LineStroke> strokes, LaneRange[] laneRanges)
         {
             var config = ctx.config;
-            var wearMul = Mathf.Clamp01(1f - config.weathering.lineWear);
+            var globalWear = config.weathering.lineWear;
             var strength = Mathf.Max(0f, config.weathering.paintHeightStrength);
-            if (wearMul <= 0f || strength <= 0f)
+            if (strength <= 0f)
             {
                 return;
             }
 
-            var globalScale = PaintHeightUnit * strength * wearMul;
             var W = ctx.W;
             var H = ctx.H;
 
@@ -33,11 +32,22 @@ namespace MitarashiDango.RoadAssetGenerator
                 {
                     continue;
                 }
-                var h = globalScale * stroke.paintHeightFactor;
+                var effectiveWear = LineWeathering.ResolveEffectiveWear(in stroke, globalWear);
+                var h = PaintHeightUnit * strength * Mathf.Clamp01(1f - effectiveWear) * stroke.paintHeightFactor;
+                if (h <= 0f)
+                {
+                    continue;
+                }
                 StrokePixelIterator.ForEach(stroke, W, H, (x, y, idx, _, _, _) =>
                 {
                     heightMap[idx] += h;
                 });
+            }
+
+            var globalScale = PaintHeightUnit * strength * Mathf.Clamp01(1f - globalWear);
+            if (globalScale <= 0f)
+            {
+                return;
             }
 
             for (var li = 0; li < config.lanes.Count; li++)
