@@ -962,12 +962,37 @@ namespace MitarashiDango.RoadAssetGenerator
             AddBoundFloat(section, styleProp, "paintHeightFactor", "Paint Height Factor",
                 "このストロークの法線マップへの塗装高さ寄与倍率。0 = 平坦、1 = 標準、>1 = より厚塗り。Weathering.PaintHeightStrength と Line Edge Wear で全体スケールが調整される。");
 
+            var weatheringOverrideProp = styleProp.FindPropertyRelative("lineWeatheringOverride");
+            var wearFoldout = new Foldout { text = "Wear (劣化)", value = weatheringOverrideProp.boolValue };
+            var overrideToggle = new Toggle("Override Weathering");
+            overrideToggle.tooltip = "ON にすると、このストロークだけ Weathering の Line Edge Wear / Line Fade を上書きします。";
+            overrideToggle.BindProperty(weatheringOverrideProp);
+            wearFoldout.Add(overrideToggle);
+
+            var wearDetailGroup = new VisualElement();
+            var wearSlider = new Slider("Line Edge Wear", 0f, 1f) { showInputField = true };
+            wearSlider.tooltip = "このストロークの摩耗量。Albedo、Normal、Metallic/Smoothness に反映されます。";
+            wearSlider.BindProperty(styleProp.FindPropertyRelative("wearOverrideValue"));
+            wearDetailGroup.Add(wearSlider);
+
+            var fadeSlider = new Slider("Line Fade", 0f, 1f) { showInputField = true };
+            fadeSlider.tooltip = "このストロークの色フェード量。";
+            fadeSlider.BindProperty(styleProp.FindPropertyRelative("fadeOverrideValue"));
+            wearDetailGroup.Add(fadeSlider);
+            wearFoldout.Add(wearDetailGroup);
+            section.Add(wearFoldout);
+
             var (tileWarn, snapBtn) = AddTileWarnAndSnap(section,
                 "Snap & center pattern",
                 "ストローク周期がタイル長を整数等分するように spacing を補正し、タイル境界に均等配置されるよう phase offset を再センタリング。",
                 () => SnapLineStyleToTile(styleProp));
 
             void UpdateTileWarning() => UpdateLineStyleTileWarning(styleProp, tileWarn, snapBtn);
+            void UpdateWearVisibility()
+            {
+                var overrideOn = weatheringOverrideProp.boolValue;
+                wearDetailGroup.style.display = overrideOn ? DisplayStyle.Flex : DisplayStyle.None;
+            }
             void UpdateVisibility()
             {
                 var typeIdx = styleProp.FindPropertyRelative("type").enumValueIndex;
@@ -981,11 +1006,14 @@ namespace MitarashiDango.RoadAssetGenerator
                 dashOffsetField.style.display = (typeIsDashed || typeIsDiamond) ? DisplayStyle.Flex : DisplayStyle.None;
                 diamondSizeField.style.display    = typeIsDiamond ? DisplayStyle.Flex : DisplayStyle.None;
                 diamondSpacingField.style.display = typeIsDiamond ? DisplayStyle.Flex : DisplayStyle.None;
+                wearFoldout.style.display = typeIsNone ? DisplayStyle.None : DisplayStyle.Flex;
+                UpdateWearVisibility();
                 UpdateTileWarning();
             }
 
             UpdateVisibility();
             typeField.RegisterValueChangedCallback(_ => UpdateVisibility());
+            overrideToggle.RegisterValueChangedCallback(_ => UpdateWearVisibility());
             dashLengthField.RegisterValueChangedCallback(_ => UpdateTileWarning());
             dashGapField.RegisterValueChangedCallback(_ => UpdateTileWarning());
             diamondSizeField.RegisterValueChangedCallback(_ => UpdateTileWarning());

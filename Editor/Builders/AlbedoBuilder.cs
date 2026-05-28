@@ -309,11 +309,15 @@ namespace MitarashiDango.RoadAssetGenerator
             {
                 var rng = new System.Random(stroke.seed + seedBase);
                 var s = stroke;
+                var localWear = LineWeathering.ResolveWear(in s, wear);
+                var localFade = LineWeathering.ResolveFade(in s, fade);
                 StrokePixelIterator.ForEach(s, W, H, (x, y, idx, duFromCenter, xStart, xEnd) =>
                 {
                     var noise = (float)(rng.NextDouble() * 2.0 - 1.0);
-                    var wearFactor = 1f - wear * 0.5f * Mathf.Abs(noise);
+                    var wearFactor = 1f - localWear * 0.5f * Mathf.Abs(noise);
                     var c = s.color * wearFactor;
+                    var src = pixels[idx];
+                    var bg = new Color(src.r / 255f, src.g / 255f, src.b / 255f);
 
                     var isEdge = s.shape.HasDiagonalEdges
                         ? Mathf.Abs(duFromCenter) >= s.halfWidthPx - 1f
@@ -321,13 +325,12 @@ namespace MitarashiDango.RoadAssetGenerator
 
                     if (isEdge)
                     {
-                        var src = pixels[idx];
-                        var t = 0.45f - fade * 0.3f;
-                        c = Color.Lerp(new Color(src.r / 255f, src.g / 255f, src.b / 255f), c, t);
+                        var t = 0.45f - localFade * 0.3f;
+                        c = Color.Lerp(bg, c, t);
                     }
                     else
                     {
-                        c = Color.Lerp(c, Color.gray, fade * 0.4f);
+                        c = Color.Lerp(c, Color.gray, localFade * 0.4f);
                     }
 
                     // タイヤ跡が標示の上を通る位置では、下地色に寄せて摩耗表現を加える。
@@ -337,8 +340,7 @@ namespace MitarashiDango.RoadAssetGenerator
                         if (localTireWear > 0f)
                         {
                             var fadeT = localTireWear * markingWearStrength;
-                            var src = pixels[idx];
-                            c = Color.Lerp(c, new Color(src.r / 255f, src.g / 255f, src.b / 255f), fadeT);
+                            c = Color.Lerp(c, bg, fadeT);
                         }
                     }
 
