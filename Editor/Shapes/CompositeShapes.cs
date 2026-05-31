@@ -38,16 +38,18 @@ namespace MitarashiDango.RoadAssetGenerator
             return true;
         }
 
-        public bool TestPixel(int x, int y, int xCenter, int halfWidthPx, out float du)
+        public bool TestPixel(int x, int y, int xCenter, int halfWidthPx, out float du, out bool isVEdge)
         {
             du = 0f;
+            isVEdge = false;
             var minAbsDu = float.MaxValue;
             var hit = false;
             foreach (var s in _shapes)
             {
-                if (s.TestPixel(x, y, xCenter, halfWidthPx, out var childDu))
+                if (s.TestPixel(x, y, xCenter, halfWidthPx, out var childDu, out var childIsVEdge))
                 {
                     hit = true;
+                    isVEdge |= childIsVEdge;
                     var abs = Mathf.Abs(childDu);
                     if (abs < minAbsDu)
                     {
@@ -111,16 +113,18 @@ namespace MitarashiDango.RoadAssetGenerator
             return false;
         }
 
-        public bool TestPixel(int x, int y, int xCenter, int halfWidthPx, out float du)
+        public bool TestPixel(int x, int y, int xCenter, int halfWidthPx, out float du, out bool isVEdge)
         {
             du = 0f;
+            isVEdge = false;
             var maxAbsDu = 0f;
             foreach (var s in _shapes)
             {
-                if (!s.TestPixel(x, y, xCenter, halfWidthPx, out var childDu))
+                if (!s.TestPixel(x, y, xCenter, halfWidthPx, out var childDu, out var childIsVEdge))
                 {
                     return false;
                 }
+                isVEdge |= childIsVEdge;
                 var abs = Mathf.Abs(childDu);
                 if (abs > maxAbsDu)
                 {
@@ -162,13 +166,13 @@ namespace MitarashiDango.RoadAssetGenerator
         public int GetSlantPad(int halfWidthPx) => _base.GetSlantPad(halfWidthPx);
         public bool CanSkipRow(int y) => _base.CanSkipRow(y);
 
-        public bool TestPixel(int x, int y, int xCenter, int halfWidthPx, out float du)
+        public bool TestPixel(int x, int y, int xCenter, int halfWidthPx, out float du, out bool isVEdge)
         {
-            if (!_base.TestPixel(x, y, xCenter, halfWidthPx, out du))
+            if (!_base.TestPixel(x, y, xCenter, halfWidthPx, out du, out isVEdge))
             {
                 return false;
             }
-            return !_mask.TestPixel(x, y, xCenter, halfWidthPx, out _);
+            return !_mask.TestPixel(x, y, xCenter, halfWidthPx, out _, out _);
         }
 
         public bool HasDiagonalEdges => _base.HasDiagonalEdges;

@@ -98,6 +98,7 @@
       <engine:VisualElement class="indented">
         <engine:Slider label="Line Edge Wear"   binding-path="config.weathering.lineWear"        low-value="0" high-value="1" show-input-field="true" tooltip="法線マップ上の塗装高さを減衰させる (1 で完全摩耗・平坦) と同時に、エッジに色ノイズを加える。" />
         <engine:Slider label="Line Fade"        binding-path="config.weathering.lineFade"        low-value="0" high-value="1" show-input-field="true" />
+        <engine:Slider label="Line Edge Fade"   binding-path="config.weathering.lineEdgeFade"    low-value="0" high-value="1" show-input-field="true" tooltip="路面標示の U/V 端を下地色になじませる強度。0 で端までシャープ、値を上げるほど塗装端が薄くなります。" />
         <engine:Slider label="Tire Track Wear"  binding-path="config.weathering.tireTrackWear"  low-value="0" high-value="1" show-input-field="true" tooltip="路面全体に適用される基本タイヤ跡摩耗。各車線の Tire Track Wear Boost と加算される。" />
         <engine:Slider label="Marking Wear from Tire Tracks" binding-path="config.weathering.tireTrackMarkingWearStrength" low-value="0" high-value="1" show-input-field="true" tooltip="タイヤ跡の上にある路面標示 (境界線・減速マーク・ドットライン等) を下地色に寄せて摩耗表現する強度。0 = 影響なし、1 = 完全フェード。" />
         <engine:FloatField label="Default Tire Track Width (m)" binding-path="config.weathering.defaultTireTrackWidthMeters" tooltip="レーン側の Override Appearance が OFF のときに使う、タイヤ跡 1 本の見た目上のおおよその幅。" />

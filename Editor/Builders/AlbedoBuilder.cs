@@ -100,7 +100,17 @@ namespace MitarashiDango.RoadAssetGenerator
 
             // 減速帯と境界線ストロークはアスファルトの上から重ね描きする。
             StampRumbleStrips(pixels, in ctx, laneRanges, seed + 350);
-            StampStrokes(pixels, W, H, strokes, config.weathering.lineWear, config.weathering.lineFade, tireTrackWear?.wearMap, config.weathering.tireTrackMarkingWearStrength, seed + 400);
+            StampStrokes(
+                pixels,
+                W,
+                H,
+                strokes,
+                config.weathering.lineWear,
+                config.weathering.lineFade,
+                config.weathering.lineEdgeFade,
+                tireTrackWear?.wearMap,
+                config.weathering.tireTrackMarkingWearStrength,
+                seed + 400);
 
             if (config.weathering.repairPatches && config.weathering.repairPatchCount > 0)
             {
@@ -302,16 +312,17 @@ namespace MitarashiDango.RoadAssetGenerator
             }
         }
 
-        private static void StampStrokes(Color32[] pixels, int W, int H, List<LineStroke> strokes, float wear, float fade, float[] wearMap, float markingWearStrength, int seedBase)
+        private static void StampStrokes(Color32[] pixels, int W, int H, List<LineStroke> strokes, float wear, float fade, float edgeFade, float[] wearMap, float markingWearStrength, int seedBase)
         {
             var applyTireWear = wearMap != null && markingWearStrength > 0f;
+            var edgeFadeT = Mathf.Clamp01(edgeFade);
             foreach (var stroke in strokes)
             {
                 var rng = new System.Random(stroke.seed + seedBase);
                 var s = stroke;
                 var localWear = LineWeathering.ResolveWear(in s, wear);
                 var localFade = LineWeathering.ResolveFade(in s, fade);
-                StrokePixelIterator.ForEach(s, W, H, (x, y, idx, duFromCenter, xStart, xEnd) =>
+                StrokePixelIterator.ForEach(s, W, H, (x, y, idx, duFromCenter, isUEdge, isVEdge) =>
                 {
                     var effectiveWear = LineWeathering.ResolveEffectiveWear(in s, wear, duFromCenter, y, H);
                     var bgWear = s.HasWearMask
@@ -323,18 +334,11 @@ namespace MitarashiDango.RoadAssetGenerator
                     var src = pixels[idx];
                     var bg = new Color(src.r / 255f, src.g / 255f, src.b / 255f);
 
-                    var isEdge = s.shape.HasDiagonalEdges
-                        ? Mathf.Abs(duFromCenter) >= s.halfWidthPx - 1f
-                        : (x == xStart || x == xEnd - 1);
+                    c = Color.Lerp(c, Color.gray, localFade * 0.4f);
 
-                    if (isEdge)
+                    if (isUEdge || isVEdge)
                     {
-                        var t = 0.45f - localFade * 0.3f;
-                        c = Color.Lerp(bg, c, t);
-                    }
-                    else
-                    {
-                        c = Color.Lerp(c, Color.gray, localFade * 0.4f);
+                        c = Color.Lerp(c, bg, edgeFadeT);
                     }
 
                     // タイヤ跡が標示の上を通る位置では、下地色に寄せて摩耗表現を加える。

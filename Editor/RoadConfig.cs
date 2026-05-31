@@ -278,6 +278,8 @@ namespace MitarashiDango.RoadAssetGenerator
         // 線の縁の摩耗。塗装高さの寄与も同時に減衰させる。
         [Range(0f, 1f)] public float lineWear = 0.15f;
         [Range(0f, 1f)] public float lineFade = 0.08f;
+        // 路面標示の U/V 端を下地色になじませる強度。0 = 端までシャープ。
+        [Range(0f, 1f)] public float lineEdgeFade = 0.08f;
         // タイヤ跡によるレーン中央付近の劣化強度。レーン毎の追加調整は LaneConfig.tireTrackWearBoost で行う。
         [Range(0f, 1f)] public float tireTrackWear = 0.0f;
         // タイヤ跡が路面標示 (境界線・減速マーク等) に与える摩耗の強度。

@@ -6,10 +6,10 @@ namespace MitarashiDango.RoadAssetGenerator
     /// <param name="x">テクスチャ X 座標。</param>
     /// <param name="y">テクスチャ Y 座標。</param>
     /// <param name="idx">フラットバッファのインデックス (= y * W + x)。</param>
-    /// <param name="duFromCenter">U 軸中心からの符号付き距離 (px)。縁ぼかし処理に利用される。</param>
-    /// <param name="xStart">走査範囲の左端。境界判定に利用される。</param>
-    /// <param name="xEnd">走査範囲の右端 (exclusive)。境界判定に利用される。</param>
-    internal delegate void StrokePixelAction(int x, int y, int idx, float duFromCenter, int xStart, int xEnd);
+    /// <param name="duFromCenter">U 軸中心からの符号付き距離 (px)。摩耗マスク処理に利用される。</param>
+    /// <param name="isUEdge">U 軸方向の端ピクセルである場合 true。</param>
+    /// <param name="isVEdge">V 軸方向の端ピクセルである場合 true。</param>
+    internal delegate void StrokePixelAction(int x, int y, int idx, float duFromCenter, bool isUEdge, bool isVEdge);
 
     /// <summary><see cref="LineStroke"/> の有効ピクセルを走査するイテレータ。</summary>
     internal static class StrokePixelIterator
@@ -36,11 +36,14 @@ namespace MitarashiDango.RoadAssetGenerator
                     {
                         continue;
                     }
-                    if (!s.shape.TestPixel(x, y, s.xCenter, s.halfWidthPx, out var duFromCenter))
+                    if (!s.shape.TestPixel(x, y, s.xCenter, s.halfWidthPx, out var duFromCenter, out var isVEdge))
                     {
                         continue;
                     }
-                    action(x, y, y * W + x, duFromCenter, xStart, xEnd);
+                    var isUEdge = s.shape.HasDiagonalEdges
+                        ? System.Math.Abs(duFromCenter) >= s.halfWidthPx - 1f
+                        : (x == xStart || x == xEnd - 1);
+                    action(x, y, y * W + x, duFromCenter, isUEdge, isVEdge);
                 }
             }
         }
