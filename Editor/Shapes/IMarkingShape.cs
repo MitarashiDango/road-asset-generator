@@ -27,9 +27,10 @@ namespace MitarashiDango.RoadAssetGenerator
         /// <param name="y">テクスチャ上の Y 座標。</param>
         /// <param name="xCenter">ストロークの U 軸中心 (px)。</param>
         /// <param name="halfWidthPx">ストロークの半幅 (px)。</param>
-        /// <param name="du">中心からの U 軸方向符号付き距離。縁ぼかし処理に利用される。</param>
+        /// <param name="du">中心からの U 軸方向符号付き距離。縁処理に利用される。</param>
+        /// <param name="isVEdge">V 軸方向の端ピクセルである場合 true。</param>
         /// <returns>ピクセルが形状内にある場合 true。</returns>
-        bool TestPixel(int x, int y, int xCenter, int halfWidthPx, out float du);
+        bool TestPixel(int x, int y, int xCenter, int halfWidthPx, out float du, out bool isVEdge);
 
         /// <summary>
         /// 縁ソフトニングに |du| を使うか (true: 斜辺系) 、固定 X 境界を使うか (false: 直線系)。

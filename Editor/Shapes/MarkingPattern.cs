@@ -51,9 +51,10 @@ namespace MitarashiDango.RoadAssetGenerator
             return p >= _sizePx;
         }
 
-        public bool TestPixel(int x, int y, int xCenter, int halfWidthPx, out float du)
+        public bool TestPixel(int x, int y, int xCenter, int halfWidthPx, out float du, out bool isVEdge)
         {
             du = 0f;
+            isVEdge = false;
             if (_periodPx <= 0.5f)
             {
                 return false;
@@ -80,6 +81,8 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             du = duNorm * halfWidthPx;
+            var edgeWidth = Mathf.Min(1f, _sizePx * 0.5f);
+            isVEdge = p <= edgeWidth || p >= _sizePx - edgeWidth;
             return true;
         }
 

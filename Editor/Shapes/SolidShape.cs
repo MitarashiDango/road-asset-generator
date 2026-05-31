@@ -10,9 +10,10 @@ namespace MitarashiDango.RoadAssetGenerator
         public int GetSlantPad(int halfWidthPx) => 0;
         public bool CanSkipRow(int y) => false;
 
-        public bool TestPixel(int x, int y, int xCenter, int halfWidthPx, out float du)
+        public bool TestPixel(int x, int y, int xCenter, int halfWidthPx, out float du, out bool isVEdge)
         {
             du = x - xCenter;
+            isVEdge = false;
             return Mathf.Abs(du) <= halfWidthPx;
         }
 
