@@ -16,9 +16,9 @@ namespace MitarashiDango.RoadAssetGenerator
 
         /// <param name="primitive">配置する図形プリミティブ。</param>
         /// <param name="sizePx">1 マークの V 方向サイズ (px)。</param>
-        /// <param name="gapPx">マーク間の V 方向ギャップ (px)。</param>
+        /// <param name="gapPx">マーク間の V 方向の間隔 (px)。</param>
         /// <param name="offsetPx">V 方向の開始オフセット (px)。</param>
-        /// <param name="yShearPx">Y-shear 量 (px)。U 位置に応じて V 周期の位相をシフトする。</param>
+        /// <param name="yShearPx">Y 方向のシアー量 (px)。U 位置に応じて V 周期の位相をずらす。</param>
         public MarkingPattern(IShapePrimitive primitive, float sizePx, float gapPx, float offsetPx, float yShearPx = 0f)
         {
             _primitive = primitive;

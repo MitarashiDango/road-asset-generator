@@ -9,7 +9,7 @@ namespace MitarashiDango.RoadAssetGenerator
     /// </summary>
     internal delegate void RumblePixelAction(int x, int y, int idx, float alpha);
 
-    /// <summary><see cref="RumbleStripParams"/> に従って rumble strip の有効ピクセルを走査するイテレータ。</summary>
+    /// <summary><see cref="RumbleStripParams"/> に従って減速帯の有効ピクセルを走査するイテレーター。</summary>
     internal static class RumblePixelIterator
     {
         public static void ForEach(in RumbleStripParams p, int W, int H, RumblePixelAction action)

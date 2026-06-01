@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MitarashiDango.RoadAssetGenerator
 {
-    /// <summary>1 本の rumble strip を描画するために必要な、すべてのパスで共通のパラメータ。</summary>
+    /// <summary>1 本の減速帯を描画するために、各マップ生成処理で共有するパラメータ。</summary>
     internal struct RumbleStripParams
     {
         public float widthPx;
@@ -12,7 +12,7 @@ namespace MitarashiDango.RoadAssetGenerator
         public int xEnd;
     }
 
-    /// <summary><see cref="LaneConfig"/> から rumble strip 描画パラメータを解決する。</summary>
+    /// <summary><see cref="LaneConfig"/> から減速帯の描画パラメータを解決する。</summary>
     internal static class RumbleStripResolver
     {
         public static bool TryResolve(LaneConfig lane, LaneRange laneRange, in BakeContext ctx, out RumbleStripParams parameters)

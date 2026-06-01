@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MitarashiDango.RoadAssetGenerator
 {
-    /// <summary>Stroke 単位の劣化値を解決する共通ヘルパ。</summary>
+    /// <summary>ストローク単位の劣化値を解決する共通ヘルパー。</summary>
     internal static class LineWeathering
     {
         public const float UseGlobal = -1f;

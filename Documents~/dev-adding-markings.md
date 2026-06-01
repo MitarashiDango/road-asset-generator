@@ -4,7 +4,7 @@
 
 路面標示を追加するには、既存のプリミティブと `MarkingPattern` を組み合わせるか、
 `IMarkingShape` を直接実装します。多くの場合、新しいプリミティブを作成して
-`MarkingPattern` に渡すだけで実現できます。
+`MarkingPattern` に渡すだけで実現可能です。
 
 ## アーキテクチャ全体像
 
@@ -22,9 +22,9 @@ RoadConfig / LineStyle / LaneConfig (設定値)
 
 ## パターン別の実装方法
 
-### パターン A: 既存プリミティブの組み合わせで実現できる場合
+### パターン A: 既存プリミティブの組み合わせで実現可能な場合
 
-新しいコードを書く必要はありません。`MarkingPattern` のパラメータだけで表現できます。
+新しいコードを追加する必要はありません。`MarkingPattern` のパラメータだけで表現可能です。
 
 ```csharp
 // 例: 楕円の破線
@@ -50,7 +50,7 @@ var triangleSheared = new MarkingPattern(
 
 ### パターン C: 合成シェイプで複合標示を作る場合
 
-`UnionShape`、`IntersectionShape`、`SubtractShape` を使って複数の標示を合成できます。
+`UnionShape`、`IntersectionShape`、`SubtractShape` を使用して複数の標示を合成可能です。
 
 ```csharp
 // 例: 矩形破線から中央の楕円を切り抜いた標示
@@ -170,6 +170,7 @@ yShearPx = 0              yShearPx > 0
 4. **V 正規化**: `v = p / sizePx`
 5. **プリミティブ判定**: `primitive.Contains(uNorm, v, out duNorm)`
 6. **du 逆変換**: `du = duNorm * halfWidthPx`
+7. **V 端判定**: 1 マーク内の先頭と末尾の 1 ピクセルを V 端として扱う
 
 ## 合成シェイプの使い分け
 

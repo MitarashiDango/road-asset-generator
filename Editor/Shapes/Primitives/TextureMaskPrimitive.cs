@@ -18,7 +18,7 @@ namespace MitarashiDango.RoadAssetGenerator
         private readonly bool _useBicubic;
         private readonly float _maxUExtent;
 
-        /// <param name="pixels">グレースケール値 [0,1] の配列。行優先、下から上 (Unity GetPixels 準拠)。</param>
+        /// <param name="pixels">グレースケール値 [0,1] の配列。行優先、下から上 (Unity の GetPixels 準拠)。</param>
         /// <param name="width">テクスチャ幅。</param>
         /// <param name="height">テクスチャ高さ。</param>
         /// <param name="threshold">内外判定のしきい値。</param>
@@ -34,7 +34,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         /// <summary>
-        /// <see cref="Texture2D"/> から <see cref="TextureMaskPrimitive"/> を生成するファクトリメソッド。
+        /// <see cref="Texture2D"/> から <see cref="TextureMaskPrimitive"/> を生成する。
         /// テクスチャが読み取り不可の場合は RenderTexture 経由で一時コピーを作成する。
         /// </summary>
         public static TextureMaskPrimitive FromTexture(Texture2D tex, float threshold = 0.5f, TextureMaskSampling sampling = TextureMaskSampling.Bilinear)

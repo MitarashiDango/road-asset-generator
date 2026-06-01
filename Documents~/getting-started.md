@@ -13,17 +13,17 @@ Road Asset Generator のインストール手順と、最初のテクスチャ�
 
 ### Package Manager から (GUI)
 
-Unity Editor の Package Manager から GUI 操作のみでインストールできます。
+Unity Editor の Package Manager から、GUI 操作のみでインストール可能です。
 
 1. Unity メニューから `Window > Package Manager` を開きます
-2. 左上の `+` ボタンをクリックし、`Add package from git URL...` を選択します
-3. 入力欄に以下の URL を貼り付けて `Add` をクリックします
+2. 左上の `+` ボタンを押下し、`Add package from git URL...` を選択します
+3. 入力欄に以下の URL を貼り付けて `Add` を選択します
 
    ```
    https://github.com/MitarashiDango/road-asset-generator.git
    ```
 
-   特定バージョンを固定したい場合は末尾に `#<タグ名>` を付与してください (例: `...#v1.0.0`)。
+   特定バージョンを固定する場合は、末尾に `#<タグ名>` を付与してください (例: `...#v1.0.0`)。
 
 ### manifest.json を直接編集
 
@@ -48,7 +48,8 @@ Unity メニューから `Tools > Road Asset Generator > Open Window` を選択�
 
 ### Step 2. プリセットを選択する
 
-ウィンドウ上部の **Quick Apply** から、目的に近い構成をクリックします。
+ウィンドウ上部の **Quick Apply** から、目的に近い構成を選択します。
+`Preset Asset` が未指定の場合でも、一時設定が自動で用意されます。設定を保持する場合は、**Save Current as New Preset** で `RoadConfigAsset` として保存してください。
 
 ### Step 3. 出力先を確認する
 
@@ -59,7 +60,7 @@ Unity メニューから `Tools > Road Asset Generator > Open Window` を選択�
 
 ### Step 4. 生成する
 
-ウィンドウ下部の **Generate Textures + Material** をクリックします。同名ファイルが存在する場合は上書き確認ダイアログが表示されます。
+ウィンドウ下部の **Generate Textures + Material** を実行します。同名ファイルが存在する場合は、上書き確認ダイアログが表示されます。
 
 生成後、`Output Folder` 配下に以下のアセットが作成されます:
 

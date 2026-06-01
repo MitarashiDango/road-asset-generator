@@ -4,8 +4,8 @@ using UnityEngine;
 namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
-    /// 路面の Albedo マップを構築する。アスファルトのベース色、肩部のティント、レーン色、
-    /// 微細ノイズ、タイヤ跡、減速帯・境界線ストローク・補修パッチのスタンプを統合する。
+    /// 路面のアルベドマップを構築する。アスファルトのベース色、路側帯の明度、レーン色、
+    /// 微細ノイズ、タイヤ跡、減速帯・境界線ストローク・補修パッチの描画を統合する。
     /// </summary>
     internal static class AlbedoBuilder
     {
@@ -125,9 +125,9 @@ namespace MitarashiDango.RoadAssetGenerator
             return new Color(tint, tint, tint * 0.7f);
         }
 
-        // 各ピクセル列 x を所属レーンの index に対応させる LUT(どのレーンにも属さなければ -1)。
-        // レーン範囲は走行可能領域(drivable bounds)であり、境界線は専用の slot を持つため、ここで -1
-        // を返した位置にはレーン色のティントが乗らない。
+        // 各ピクセル列 x を所属レーンのインデックスに対応させる表。どのレーンにも属さなければ -1。
+        // レーン範囲は走行可能領域であり、境界線は専用スロットを持つため、
+        // ここで -1 を返した位置にはレーン色のティントが乗らない。
         private static int[] BuildLaneIndexLUT(int W, LaneRange[] laneRanges)
         {
             var lut = new int[W];
@@ -262,7 +262,7 @@ namespace MitarashiDango.RoadAssetGenerator
             widthMeters = Mathf.Max(0.05f, widthMeters);
             spacingMeters = Mathf.Max(0f, spacingMeters);
             opacity = Mathf.Clamp01(opacity);
-            // Albedo output is opaque; ignore the UI color alpha so tire tracks only affect RGB.
+            // アルベド出力は不透明なので、UI 色のアルファは使わず RGB だけを反映する。
             color.a = 1f;
         }
 

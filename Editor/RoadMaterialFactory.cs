@@ -25,7 +25,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
         public static SaveResult SaveAndCreateAssets(GeneratedTextures gen, RoadConfig config)
         {
-            var folder = config.output.outputFolder;
+            var folder = string.IsNullOrEmpty(config.output.outputFolder) ? "Assets" : config.output.outputFolder;
             EnsureFolder(folder);
 
             var prefix = string.IsNullOrEmpty(config.output.namePrefix) ? "road" : config.output.namePrefix;
@@ -132,7 +132,7 @@ namespace MitarashiDango.RoadAssetGenerator
         private static void ApplyUrpTextures(Material mat, Texture2D albedo, Texture2D normal, Texture2D ms, Texture2D ao)
         {
             mat.SetTexture("_BaseMap", albedo);
-            mat.SetTexture("_MainTex", albedo); // 旧 URP 互換のフォールバック
+            mat.SetTexture("_MainTex", albedo); // 旧 URP 互換用。
             if (normal != null)
             {
                 mat.SetTexture("_BumpMap", normal);
@@ -152,7 +152,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 mat.EnableKeyword("_OCCLUSIONMAP");
                 mat.SetFloat("_OcclusionStrength", 1f);
             }
-            mat.SetFloat("_WorkflowMode", 1); // 1 = Metallic ワークフロー
+            mat.SetFloat("_WorkflowMode", 1); // 1 = メタリックワークフロー。
         }
 
         private static void ApplyBuiltInTextures(Material mat, Texture2D albedo, Texture2D normal, Texture2D ms, Texture2D ao)
@@ -170,7 +170,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 mat.SetFloat("_Metallic", 0f);
                 mat.SetFloat("_Glossiness", 1f);
                 mat.SetFloat("_GlossMapScale", 1f);
-                mat.SetInt("_SmoothnessTextureChannel", 0); // メタリック A チャンネルから smoothness を読む
+                mat.SetInt("_SmoothnessTextureChannel", 0); // メタリックマップの A チャンネルからスムースネスを読む。
             }
             if (ao != null)
             {

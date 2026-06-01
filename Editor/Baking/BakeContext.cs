@@ -3,8 +3,8 @@ using System;
 namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
-    /// ベイク処理全体で共有される不変コンテキスト。テクスチャ寸法・メートル/ピクセル変換係数・
-    /// シードなど、複数の Resolver/Builder から参照される値をまとめる。
+    /// ベイク処理全体で共有される不変コンテキスト。テクスチャ寸法、メートル/ピクセル変換係数、
+    /// シードなど、複数の解決処理やマップ生成処理から参照される値をまとめる。
     /// </summary>
     internal readonly struct BakeContext
     {

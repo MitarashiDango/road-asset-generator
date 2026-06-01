@@ -4,8 +4,8 @@ using UnityEngine;
 namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
-    /// Metallic / Smoothness パックマップを構築する。RGB = 0(非メタリック)、A = smoothness。
-    /// 塗装マーク(減速帯と線 stroke)はアスファルトより滑らかにスタンプする。
+    /// メタリック/スムースネスのパックマップを構築する。RGB = 0 (非メタリック)、A = スムースネス。
+    /// 塗装マーク (減速帯と線ストローク) はアスファルトより滑らかに描画する。
     /// </summary>
     internal static class MetallicSmoothnessBuilder
     {
@@ -16,7 +16,7 @@ namespace MitarashiDango.RoadAssetGenerator
             var config = ctx.config;
             var pixels = new Color32[W * H];
 
-            // アスファルトは粗い (~0.16)。濡れ路面では全体的に smoothness を上げる。
+            // アスファルトは粗めにする。濡れ路面では全体的にスムースネスを上げる。
             var asphaltSmooth = config.weathering.wetSurface ? (byte)180 : (byte)40;
             var noise = RoadNoise.GaussianBlurWrap(RoadNoise.WhiteNoise(W, H, ctx.seed + 601), W, H, 2f);
 
@@ -27,7 +27,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 pixels[i] = new Color32(0, 0, 0, (byte)v);
             }
 
-            // 塗装マーク(減速帯と線 stroke)はアスファルトより滑らか。
+            // 塗装マーク (減速帯と線ストローク) はアスファルトより滑らかにする。
             var lineSmooth = config.weathering.wetSurface ? (byte)220 : (byte)110;
 
             for (var li = 0; li < config.lanes.Count; li++)

@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MitarashiDango.RoadAssetGenerator
 {
-    /// <summary>u^2 + (2(v-0.5))^2 &lt;= 1 の楕円。ステートレスなのでシングルトンとして共有可能。</summary>
+    /// <summary>u^2 + (2(v-0.5))^2 &lt;= 1 の楕円。状態を持たないためシングルトンとして共有する。</summary>
     public sealed class EllipsePrimitive : IShapePrimitive
     {
         public static readonly EllipsePrimitive Instance = new EllipsePrimitive();
