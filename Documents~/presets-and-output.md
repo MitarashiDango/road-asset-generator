@@ -14,9 +14,9 @@
 
 ## Quick Apply プリセット
 
-ウィンドウ上部の **Quick Apply** から、6 種の代表的な道路構成をワンクリックで適用できます。**現在の設定は上書きされる**ため、必要に応じて事前にプリセットアセットとして保存しておいてください。
+ウィンドウ上部の **Quick Apply** から、6 種の代表的な道路構成を適用可能です。**現在の設定は上書きされる**ため、必要に応じて事前にプリセットアセットとして保存してください。
 
-名前付き Preset Asset がロードされている状態で Quick Apply を押すと、上書き確認ダイアログが表示されます (一時アセット使用時はダイアログなし)。
+名前付き Preset Asset がロードされている状態で Quick Apply を実行すると、上書き確認ダイアログが表示されます (一時アセット使用時はダイアログなし)。
 
 ### 1. 追越禁止 (`PresetMountainRoad_NoOvertaking`)
 
@@ -56,12 +56,12 @@
 
 ### Save Current as New Preset
 
-ウィンドウ上部の **Save Current as New Preset** ボタンで、現在の設定を `RoadConfigAsset` として保存できます。
+ウィンドウ上部の **Save Current as New Preset** ボタンで、現在の設定を `RoadConfigAsset` として保存可能です。
 
 操作手順:
 
 1. ウィンドウ上部のパラメータを編集
-2. **Save Current as New Preset** をクリック
+2. **Save Current as New Preset** を押下
 3. 保存ダイアログで保存先 (プロジェクト内) とファイル名を指定
 
 ### Preset Asset の読込
@@ -70,17 +70,17 @@
 
 ### Reset to Default
 
-**Reset to Default** ボタンで、現在編集中のアセットを「追越禁止」プリセットの値にリセットできます (確認ダイアログ表示後に実行)。
+**Reset to Default** ボタンで、現在編集中のアセットを「追越禁止」プリセットの値にリセット可能です (確認ダイアログ表示後に実行)。
 
 ### 一時アセット表示
 
-`Preset Asset` が未指定の状態で編集を始めると、ウィンドウ上部に「Using unsaved settings — click 'Save Current as New Preset' to keep them.」と表示されます。
+`Preset Asset` が未指定の状態で編集すると、ウィンドウ上部に「Using unsaved settings — click 'Save Current as New Preset' to keep them.」と表示されます。この状態でも生成可能ですが、設定を保持するには保存が必要です。
 
 ---
 
 ## Built-in Presets メニュー
 
-メニュー `Tools > Road Asset Generator > Create Built-in Presets`、またはウィンドウ上部の **Create Built-in Presets** ボタンから、上記 6 種の組み込みプリセットを `RoadConfigAsset` ファイルとして一括生成できます。
+メニュー `Tools > Road Asset Generator > Create Built-in Presets`、またはウィンドウ上部の **Create Built-in Presets** ボタンから、上記 6 種の組み込みプリセットを `RoadConfigAsset` ファイルとして一括生成可能です。同名アセットがある場合は、Unity の `GenerateUniqueAssetPath` により別名で作成されます。
 
 生成先:
 
@@ -94,7 +94,7 @@ Assets/RoadPresets/
 └── NoLaneMarkings.asset
 ```
 
-これらは **Preset Asset** フィールドにドラッグして即座に適用できます。
+これらは **Preset Asset** フィールドにドラッグして即座に適用可能です。
 
 ---
 
@@ -102,7 +102,7 @@ Assets/RoadPresets/
 
 ### ファイル一覧
 
-`Generate Textures + Material` で以下のファイルが `Output Folder` に生成されます (ファイル名は `Name Prefix` に依存)。
+`Generate Textures + Material` で以下のファイルが `Output Folder` に生成されます。ファイル名は `Name Prefix` に依存します。Albedo は常に生成され、Normal、MetallicSmoothness、AO、Material は `Output` の各トグルで生成有無を切り替えられます。
 
 | ファイル | 内容 | sRGB | 用途 |
 |---|---|---|---|
@@ -110,7 +110,7 @@ Assets/RoadPresets/
 | `<prefix>_normal.png` | 法線マップ | No (NormalMap) | Material の Normal Map |
 | `<prefix>_metallicSmoothness.png` | Metallic (R) + Smoothness (A) | No (Linear) | Material の Metallic Map |
 | `<prefix>_ao.png` | Ambient Occlusion | No (Linear) | Material の Occlusion Map |
-| `<prefix>_material.mat` | マテリアル | — | 上記マップを参照 |
+| `<prefix>_material.mat` | マテリアル | — | 生成されたマップを参照 |
 
 ### テクスチャインポート設定
 

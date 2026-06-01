@@ -11,7 +11,7 @@ namespace MitarashiDango.RoadAssetGenerator
     /// <param name="isVEdge">V 軸方向の端ピクセルである場合 true。</param>
     internal delegate void StrokePixelAction(int x, int y, int idx, float duFromCenter, bool isUEdge, bool isVEdge);
 
-    /// <summary><see cref="LineStroke"/> の有効ピクセルを走査するイテレータ。</summary>
+    /// <summary><see cref="LineStroke"/> の有効ピクセルを走査するイテレーター。</summary>
     internal static class StrokePixelIterator
     {
         public static void ForEach(in LineStroke s, int W, int H, StrokePixelAction action)

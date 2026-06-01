@@ -22,18 +22,18 @@ namespace MitarashiDango.RoadAssetGenerator
 
         private readonly Dictionary<string, bool> _foldouts = new Dictionary<string, bool>();
 
-        // Preview weights for vertex groups
+        // 頂点グループのプレビュー用 weight。
         private readonly Dictionary<string, float> _previewWeights = new Dictionary<string, float>();
 
-        // Cache of resolved (weight-applied) vertex positions for the current frame.
-        // null when no preview weight is active; otherwise rings[ri][vi] == final position.
+        // 現在フレームで使用する、weight 適用済み頂点位置のキャッシュ。
+        // プレビュー用 weight が無効なら null。有効なら rings[ri][vi] == 最終位置。
         private Vector2[][] _resolvedPositions;
         private bool _hasActiveWeights;
 
         private const float MinPixelsPerUnit = 30f;
         private const float MaxPixelsPerUnit = 800f;
         private const float VertexHandleRadius = 5f;
-        private const float SelectDistSq = 100f; // 10px squared
+        private const float SelectDistSq = 100f; // 10 px 分の距離を二乗した値。
 
         private static readonly Color BgColor = new Color(0.18f, 0.18f, 0.18f);
         private static readonly Color GridMajor = new Color(0.35f, 0.35f, 0.35f, 0.8f);
@@ -100,7 +100,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
         /// <summary>
         /// 現在の <see cref="_previewWeights"/> を <see cref="Data"/> に適用した頂点位置をキャッシュする。
-        /// 有効な weight が一つもない場合は <see cref="_resolvedPositions"/> を null にしてフォールバックする。
+        /// 有効な weight が一つもない場合は <see cref="_resolvedPositions"/> を null にして基本位置を使用する。
         /// </summary>
         private void UpdateResolvedPositions()
         {
@@ -181,7 +181,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // =====================================================================
-        // Toolbar
+        // ツールバー
         // =====================================================================
 
         private void DrawToolbar()
@@ -213,7 +213,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // =====================================================================
-        // Canvas
+        // キャンバス
         // =====================================================================
 
         private void DrawCanvas(Rect rect)
@@ -359,7 +359,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // =====================================================================
-        // Canvas Input
+        // キャンバス入力
         // =====================================================================
 
         private void HandleCanvasInput(Rect rect, Event evt)
@@ -550,7 +550,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // =====================================================================
-        // Sidebar
+        // サイドバー
         // =====================================================================
 
         private void DrawSidebar(Rect rect)
@@ -721,7 +721,7 @@ namespace MitarashiDango.RoadAssetGenerator
                         MarkDirty();
                     }
 
-                    // Preview weight slider
+                    // プレビュー用 weight スライダー。
                     if (!_previewWeights.TryGetValue(group.name, out var pw))
                     {
                         pw = 0f;
@@ -804,7 +804,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // =====================================================================
-        // Splitter
+        // 分割バー
         // =====================================================================
 
         private void HandleResizeSplitter(Rect rect)
@@ -836,7 +836,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // =====================================================================
-        // Vertex / Ring management
+        // 頂点 / リング管理
         // =====================================================================
 
         private void AddVertexToSelectedRing(Vector2 normPos)
@@ -930,7 +930,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // =====================================================================
-        // Preset shapes
+        // プリセット形状
         // =====================================================================
 
         private PolygonRing PresetTriangle()
@@ -957,7 +957,7 @@ namespace MitarashiDango.RoadAssetGenerator
         private PolygonRing PresetHole()
         {
             var ring = new PolygonRing { label = "Hole" };
-            // CW winding for hole
+            // 穴として扱うため、時計回りにする。
             ring.vertices.Add(new PolygonVertex("v" + NextVertexId(), new Vector2(-0.5f, 0.25f)));
             ring.vertices.Add(new PolygonVertex("v" + NextVertexId(), new Vector2(-0.5f, 0.75f)));
             ring.vertices.Add(new PolygonVertex("v" + NextVertexId(), new Vector2(0.5f, 0.75f)));
@@ -996,7 +996,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // =====================================================================
-        // Asset management
+        // アセット管理
         // =====================================================================
 
         private void CreateNewAsset()
@@ -1041,7 +1041,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // =====================================================================
-        // Helpers
+        // ヘルパー
         // =====================================================================
 
         private static Vector3 V3(Vector2 v) => new Vector3(v.x, v.y, 0f);

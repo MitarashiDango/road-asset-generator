@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MitarashiDango.RoadAssetGenerator
 {
-    /// <summary>V 軸方向に途切れなく続く実線。ステートレスなのでシングルトンとして共有可能。</summary>
+    /// <summary>V 軸方向に途切れなく続く実線。状態を持たないためシングルトンとして共有する。</summary>
     public sealed class SolidShape : IMarkingShape
     {
         public static readonly SolidShape Instance = new SolidShape();

@@ -5,7 +5,7 @@ namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
     /// 多角形ポリゴンで定義される図形プリミティブ。
-    /// Winding Number アルゴリズムで内外判定を行い、複数リング（外周 + 穴）をサポートする。
+    /// Winding Number アルゴリズムで内外判定を行い、複数リング (外周 + 穴) を扱う。
     /// </summary>
     public sealed class PolygonPrimitive : IShapePrimitive
     {
@@ -23,8 +23,8 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         /// <summary>
-        /// <see cref="PolygonData"/> から直接生成するファクトリメソッド。
-        /// weights で頂点グループの適用量を指定する。null の場合は基本位置のみ使用。
+        /// <see cref="PolygonData"/> から直接生成する。
+        /// weights で頂点グループの適用量を指定する。null の場合は基本位置のみ使用する。
         /// </summary>
         public static PolygonPrimitive FromData(PolygonData data, Dictionary<string, float> weights = null)
         {

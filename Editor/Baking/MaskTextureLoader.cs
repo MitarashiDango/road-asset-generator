@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MitarashiDango.RoadAssetGenerator
 {
-    /// <summary>Texture2D からグレースケールマスク値を読み出す共通ローダ。</summary>
+    /// <summary>Texture2D からグレースケールマスク値を読み出す共通ローダー。</summary>
     internal static class MaskTextureLoader
     {
         public static (float[] pixels, int width, int height) LoadGrayscale(Texture2D tex)

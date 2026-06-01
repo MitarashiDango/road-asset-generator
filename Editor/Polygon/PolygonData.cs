@@ -97,7 +97,7 @@ namespace MitarashiDango.RoadAssetGenerator
     }
 
     /// <summary>
-    /// BlendShape ライクな頂点グループ。名前付きデルタ群を持ち、
+    /// BlendShape 風の頂点グループ。名前付きデルタ群を持ち、
     /// weight (0〜1) を掛けて基本位置に加算することで頂点を変形する。
     /// </summary>
     [Serializable]
@@ -194,7 +194,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
     /// <summary>
     /// 頂点グループ適用済みのポリゴンデータ。<see cref="PolygonPrimitive"/> の
-    /// コンストラクタに渡して使用する。AABB をキャッシュし、高速な事前棄却を可能にする。
+    /// コンストラクタに渡して使用する。AABB をキャッシュし、高速な事前棄却に用いる。
     /// </summary>
     public sealed class ResolvedPolygon
     {

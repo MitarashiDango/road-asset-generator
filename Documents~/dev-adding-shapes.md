@@ -2,7 +2,7 @@
 
 ## 概要
 
-`IShapePrimitive` を実装することで、新しい幾何形状を追加できます。
+`IShapePrimitive` を実装することで、新しい幾何形状を追加可能です。
 プリミティブは正規化座標空間でのみ動作し、路面標示の配置やテクスチャベイクの詳細を知る必要はありません。
 
 ## アーキテクチャ上の位置づけ
@@ -69,8 +69,8 @@ namespace MitarashiDango.RoadAssetGenerator
 
 正規化座標 `(u, v)` が図形の内部にある場合 `true` を返します。
 
-- `duNorm`: 中心からの U 方向の符号付き距離を出力します。Baker の縁ぼかし処理で使用されます。
-  - 通常は `duNorm = u` で十分です。
+- `duNorm`: 中心からの U 方向の符号付き距離を出力します。摩耗マスクのサンプリングと、U 端判定で使用されます。
+  - 通常は `duNorm = u` で問題ありません。
   - 平行四辺形のように中心がシフトする場合は、シフト後の値を出力します。
 
 #### `MaxUExtent`
@@ -86,13 +86,15 @@ namespace MitarashiDango.RoadAssetGenerator
 
 - 図形の境界に斜辺がある場合は `true` を返します（楕円・三角形・平行四辺形など）。
 - 水平・垂直の辺のみの場合は `false` を返します（矩形など）。
-- Baker はこの値に基づいて縁ソフトニングの方式を切り替えます。
-  - `true`: `|du|` ベースの距離フェードを使用（斜辺のジャギーを軽減）
-  - `false`: 固定 X 境界のフェードを使用（直線系で十分）
+- ベイク処理はこの値に基づいて、U 端の判定方法を切り替えます。
+  - `true`: `|du|` を使って、斜辺を含む形状の端を判定します。
+  - `false`: 走査範囲の左右端を、そのまま U 端として扱います。
 
-### 3. ステートレスかどうかを判断する
+V 方向の端は `MarkingPattern` が判定します。1 マーク内の先頭と末尾の 1 ピクセルが V 端として扱われ、`Weathering > Line Edge Fade` の対象になります。
 
-- **パラメータなし**（矩形・楕円・三角形）: シングルトンにできます。
+### 3. 状態を持たないかどうかを判断する
+
+- **パラメータなし**（矩形・楕円・三角形）: シングルトンとして実装可能です。
   `public static readonly XxxPrimitive Instance = new XxxPrimitive();` を定義します。
 - **パラメータあり**（平行四辺形のシアー量など）: 都度インスタンスを生成します。
 
@@ -109,7 +111,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
 ## 使い方
 
-作成したプリミティブは `MarkingPattern` と組み合わせて使います。
+作成したプリミティブは `MarkingPattern` と組み合わせて使用します。
 
 ```csharp
 // 星形マークを 2m 間隔で繰り返す路面標示
@@ -128,19 +130,19 @@ var unionShape = new UnionShape(
 ## 注意点
 
 - プリミティブは `MarkingPattern` を介さず単独では `IMarkingShape` として使用できません。
-  V 軸繰り返しが不要な場合は `SolidShape` を使用するか、`gapPx = 0` の `MarkingPattern` を使用してください。
-- `Contains` はピクセルごとに呼ばれるため、パフォーマンスに配慮してください。
-  三角関数や平方根の使用は最小限に留め、可能なら二乗比較を使います。
-- `duNorm` は Baker が `duNorm * halfWidthPx` でピクセル空間に逆変換します。
+  V 軸繰り返しが不要な場合は、`SolidShape` または `gapPx = 0` の `MarkingPattern` を使用してください。
+- `Contains` はピクセルごとに呼ばれるため、パフォーマンスに配慮が必要です。
+  三角関数や平方根の使用は最小限にとどめ、可能な場合は二乗比較を使用します。
+- `duNorm` はベイク処理で `duNorm * halfWidthPx` としてピクセル空間に戻されます。
   中心 (u=0) で `duNorm = 0`、端 (u=+/-1) で `duNorm = +/-1` が基本です。
 
 ---
 
 ## テクスチャマスクで図形を定義する
 
-数式でプリミティブを実装する代わりに、グレースケールテクスチャで図形を定義できます。
+数式でプリミティブを実装する代わりに、グレースケールテクスチャで図形を定義可能です。
 `TextureMaskPrimitive` は他のプリミティブ（Rectangle, Ellipse 等）と同列の `IShapePrimitive` 実装であり、
-`MarkingPattern` や合成シェイプ（`UnionShape` 等）と自由に組み合わせて使用できます。
+`MarkingPattern` や合成シェイプ（`UnionShape` 等）と自由に組み合わせて使用可能です。
 
 ### テクスチャの仕様
 
@@ -164,7 +166,7 @@ var unionShape = new UnionShape(
 
 ### 使い方
 
-`TextureMaskPrimitive.FromTexture()` ファクトリメソッドで `Texture2D` から直接生成できます。
+`TextureMaskPrimitive.FromTexture()` ファクトリメソッドで、`Texture2D` から直接生成可能です。
 
 ```csharp
 // テクスチャマスクを MarkingPattern と組み合わせる例
@@ -183,7 +185,7 @@ var primitive = new TextureMaskPrimitive(pixels, width, height, threshold: 0.5f,
 
 ## 多角形ポリゴンで図形を定義する
 
-`PolygonPrimitive` を使用すると、多角形の頂点データで図形を定義できます。
+`PolygonPrimitive` を使用すると、多角形の頂点データで図形を定義可能です。
 テクスチャマスクとは異なり、パラメータによる頂点の変形が可能で、穴（ホール）のある複合図形もサポートします。
 
 ### データ構造
@@ -194,7 +196,7 @@ var primitive = new TextureMaskPrimitive(pixels, width, height, threshold: 0.5f,
 |---|---|
 | `PolygonRing` | 閉じた多角形リング。CCW (反時計回り) = 外周、CW (時計回り) = 穴 |
 | `PolygonVertex` | 名前付き頂点。position は正規化座標 u[-1,+1], v[0,1] |
-| `PolygonEdge` | 辺タイプ。現在は Linear のみ。将来ベジェ等に拡張可能 |
+| `PolygonEdge` | 辺タイプ。現在は Linear のみ |
 | `VertexGroup` | BlendShape ライクな頂点グループ。weight × delta の加算で頂点を変形 |
 
 ### 座標系
@@ -214,7 +216,7 @@ Winding Number アルゴリズムにより、外周の内部かつ穴の外部�
 ### 頂点グループ（BlendShape ライク）
 
 各頂点グループは名前とデルタ（オフセット）のリストを持ちます。
-`MarkingShape` クラスから weight を指定して適用することで、図形の形状をパラメトリックに制御できます。
+`MarkingShape` クラスから weight を指定して適用することで、図形の形状をパラメトリックに制御可能です。
 
 ```
 最終位置 = 基本位置 + Σ(weight_i × delta_i)
@@ -248,7 +250,7 @@ var primitive = PolygonPrimitive.FromData(asset.data, weights);
 
 ### PolygonDataAsset の編集
 
-`PolygonDataAsset` は ScriptableObject としてプロジェクトに保存できます。
+`PolygonDataAsset` は ScriptableObject としてプロジェクトに保存可能です。
 
 - **作成**: Project ウィンドウで右クリック → Create → Road Asset Generator → Polygon Shape
 - **編集**: メニュー Tools → Road Asset Generator → Polygon Editor でビジュアルエディタを開く
@@ -273,8 +275,8 @@ var primitive = PolygonPrimitive.FromData(asset.data, weights);
 | 図形定義のコスト | C# クラスの実装が必要 | PNG を用意するだけ | 頂点データの定義（エディタ利用可） |
 | パラメータ化 | シアー量等を引数で受け取れる | テクスチャ固定（変更には別テクスチャが必要） | 頂点グループで変形可能 |
 | 穴のサポート | 個別実装が必要 | 不可 | CW リングで自然にサポート |
-| 曲線 | 数式で自由に表現 | テクスチャで表現 | 将来の辺タイプ拡張で対応予定 |
+| 曲線 | 数式で自由に表現 | テクスチャで表現 | 現在は直線辺の組み合わせで表現 |
 
 - **コード実装**: 楕円や平行四辺形など、数式で簡潔に表せる図形や、高頻度で使用する基本図形に適している。
 - **テクスチャマスク**: ロゴや複雑な曲線など、数式やポリゴンでの表現が難しい特殊形状に適している。
-- **多角形ポリゴン**: パラメータで変形する必要がある図形や、穴のある複合図形に適している。コードを書かずにビジュアルエディタで定義できる。
+- **多角形ポリゴン**: パラメータで変形する必要がある図形や、穴のある複合図形に適している。コードを追加せずにビジュアルエディタで定義可能。

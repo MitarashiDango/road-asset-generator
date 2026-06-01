@@ -2,8 +2,9 @@
 
 ## 概要
 
-`RoadTextureBaker.Bake(RoadConfig)` は、設定から 4 種類のテクスチャ
+`RoadTextureBaker.Bake(RoadConfig)` は、設定から道路用テクスチャ
 （Albedo / Normal / MetallicSmoothness / AO）を生成します。
+Albedo は常に生成され、その他のマップは `Output` の生成トグルに従います。
 内部処理は責務ごとに 4 層に分離されています。
 
 ## レイヤー構成
@@ -22,7 +23,7 @@ Layer 4: RoadTextureBaker (オーケストレーター)
 
 ```
 Editor/
-├── RoadTextureBaker.cs            # 公開 API (Bake) + GeneratedTextures
+├── RoadTextureBaker.cs            # Editor 内の公開 API (Bake) + GeneratedTextures
 ├── Baking/                        # 内部インフラ
 │   ├── BakeContext.cs             # 共有コンテキスト
 │   ├── LineStroke.cs              # 1 本のストロークの中間表現
@@ -54,9 +55,9 @@ public static GeneratedTextures Bake(RoadConfig config)
 
     var albedoPixels = AlbedoBuilder.Build(...);          // 5. Albedo 構築
     PaintHeightStamper.Apply(heightMap, ...);             // 6. 高さマップに塗装高さ加算
-    var normalPixels = NormalBuilder.Build(heightMap, ...); // 7. Normal 構築
-    var msPixels = MetallicSmoothnessBuilder.Build(...);  // 8. MS 構築
-    var aoPixels = AOBuilder.Build(...);                  // 9. AO 構築
+    var normalPixels = NormalBuilder.Build(heightMap, ...); // 7. Normal 構築 (生成トグルが ON の場合)
+    var msPixels = MetallicSmoothnessBuilder.Build(...);  // 8. MS 構築 (生成トグルが ON の場合)
+    var aoPixels = AOBuilder.Build(...);                  // 9. AO 構築 (生成トグルが ON の場合)
 
     return new GeneratedTextures { ... };
 }
@@ -65,9 +66,9 @@ public static GeneratedTextures Bake(RoadConfig config)
 ### 重要な順序制約
 
 `PaintHeightStamper` は `AlbedoBuilder` の**後**、`NormalBuilder` の**前**に呼ぶ必要があります。
-これは:
+理由は次のとおりです。
 - Albedo はベース高さマップを使ってアスファルトをシェーディングするため、塗装の凸を含めない
-- Normal は塗装の凸を法線に反映させるため、塗装高さを加算した後の heightMap を使う
+- Normal は塗装の凸を法線に反映させるため、塗装高さを加算した後の heightMap を使用する
 
 ## 各レイヤーの役割
 
@@ -88,10 +89,13 @@ public static GeneratedTextures Bake(RoadConfig config)
 
 **`StrokePixelIterator`**: `LineStroke` の有効ピクセルを走査
 ```csharp
-StrokePixelIterator.ForEach(in stroke, W, H, (x, y, idx, du, xStart, xEnd) => {
+StrokePixelIterator.ForEach(in stroke, W, H, (x, y, idx, du, isUEdge, isVEdge) => {
     // 各有効ピクセルに対する処理
 });
 ```
+
+コールバックの `du` は、ストローク中心からの U 方向距離です。摩耗マスクの U 座標計算などで使用します。
+`isUEdge` は左右方向の端、`isVEdge` は破線や減速マークなどの 1 マーク内の先頭/末尾を示します。`AlbedoBuilder` はこの 2 つを使用して、`Weathering > Line Edge Fade` を U/V 両方向の端に適用します。
 
 **`RumblePixelIterator`**: `RumbleStripParams` の有効ピクセルを走査
 ```csharp
@@ -100,7 +104,7 @@ RumblePixelIterator.ForEach(in sp, W, H, (x, y, idx, alpha) => {
 });
 ```
 
-これらはステートレスなユーティリティで、Albedo / MS / PaintHeight など複数の Builder から再利用されます。
+これらは状態を持たないユーティリティで、Albedo / MS / PaintHeight など複数の Builder から再利用されます。
 
 ### Layer 3: Builders
 

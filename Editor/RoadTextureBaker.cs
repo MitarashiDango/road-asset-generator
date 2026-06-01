@@ -7,21 +7,20 @@ namespace MitarashiDango.RoadAssetGenerator
     {
         public Texture2D albedo;
         public Texture2D normal;
-        // RGB = 0(非メタリック)、A = smoothness。
+        // RGB = 0 (非メタリック)、A = スムースネス。
         public Texture2D metallicSmoothness;
         public Texture2D ao;
     }
 
     /// <summary>
-    /// <see cref="RoadConfig"/> から道路面テクスチャ(albedo / normal / metallic-smoothness / AO)
-    /// を手続き的に生成する。Editor に依存しない Runtime API として提供され、ディスクへの保存は
-    /// Editor 側のレイヤが担う。
+    /// <see cref="RoadConfig"/> から道路面テクスチャ (アルベド / 法線 / メタリック・スムースネス / AO)
+    /// を手続き的に生成する。ディスクへの保存とインポート設定は <see cref="RoadMaterialFactory"/> が担う。
     ///
-    /// 内部処理は責務ごとに分離されている:
+    /// 内部処理は責務ごとに分離されている。
     /// - <see cref="BakeContext"/>: 共有寸法・係数・シード
     /// - <see cref="StrokeResolver"/> / <see cref="LaneRangeResolver"/>: 設定→中間表現
     /// - <see cref="StrokePixelIterator"/> / <see cref="RumblePixelIterator"/>: ピクセル走査
-    /// - <see cref="AlbedoBuilder"/> / <see cref="NormalBuilder"/> / <see cref="MetallicSmoothnessBuilder"/> / <see cref="AOBuilder"/>: 各マップ構築
+    /// - <see cref="AlbedoBuilder"/> / <see cref="NormalBuilder"/> / <see cref="MetallicSmoothnessBuilder"/> / <see cref="AOBuilder"/>: 各マップ生成
     /// - <see cref="PaintHeightStamper"/>: 高さマップへの塗装高さ加算
     /// </summary>
     public static class RoadTextureBaker
@@ -39,7 +38,7 @@ namespace MitarashiDango.RoadAssetGenerator
             var albedoPixels = AlbedoBuilder.Build(in ctx, strokes, laneRanges, heightMap);
             var albedoTex = TextureUtils.MakeLinear(albedoPixels, ctx.W, ctx.H);
 
-            // 塗装の凸を高さマップに加算する処理は Albedo パスのあとに実行する。アスファルト
+            // 塗装の凸を高さマップに加算する処理はアルベド生成のあとに実行する。アスファルト
             // シェーディングへの影響を避け、法線マップだけが塗装の凸を反映するようにするため。
             PaintHeightStamper.Apply(heightMap, in ctx, strokes, laneRanges);
 

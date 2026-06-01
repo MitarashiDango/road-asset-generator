@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MitarashiDango.RoadAssetGenerator
 {
-    /// <summary>複数の形状の和集合。いずれかの形状に含まれればヒットとみなす。</summary>
+    /// <summary>複数の形状の和集合。いずれかの形状に含まれれば形状内とみなす。</summary>
     public sealed class UnionShape : IMarkingShape
     {
         private readonly IMarkingShape[] _shapes;
@@ -77,7 +77,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
     }
 
-    /// <summary>複数の形状の積集合。すべての形状に含まれる場合のみヒットとみなす。</summary>
+    /// <summary>複数の形状の積集合。すべての形状に含まれる場合のみ形状内とみなす。</summary>
     public sealed class IntersectionShape : IMarkingShape
     {
         private readonly IMarkingShape[] _shapes;
@@ -151,7 +151,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
     }
 
-    /// <summary>ベース形状からマスク形状を差し引く。ベースに含まれマスクに含まれない場合にヒット。</summary>
+    /// <summary>ベース形状からマスク形状を差し引く。ベースに含まれ、マスクに含まれない場合だけ形状内とみなす。</summary>
     public sealed class SubtractShape : IMarkingShape
     {
         private readonly IMarkingShape _base;

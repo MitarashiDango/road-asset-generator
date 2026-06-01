@@ -3,8 +3,8 @@ using UnityEngine;
 namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
-    /// <see cref="RoadTextureBaker"/> が利用するタイル可能なプロシージャルノイズユーティリティ群。
-    /// すべての処理は境界をラップ(wrap-around)するため、生成されたマップはシームレスにタイリングできる。
+    /// <see cref="RoadTextureBaker"/> が利用する、タイルとして繰り返せるプロシージャルノイズのユーティリティ群。
+    /// すべての処理で境界を折り返すため、生成されたマップはシームレスにタイリング可能となる。
     /// </summary>
     public static class RoadNoise
     {
@@ -21,7 +21,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         /// <summary>
-        /// 境界を wrap-around する分離型ガウスぼかし。入力をタイル可能な画像として扱う。
+        /// 境界を折り返す分離型ガウスぼかし。入力をタイルとして繰り返せる画像として扱う。
         /// <paramref name="sigma"/> が 0.4 未満の場合は入力のコピーをそのまま返す。
         /// </summary>
         public static float[] GaussianBlurWrap(float[] input, int width, int height, float sigma)
@@ -66,7 +66,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         /// <summary>
-        /// 大きいテクスチャに対する wrap-Gaussian の近似。小さなホワイトノイズをぼかしてから
+        /// 大きいテクスチャ向けの折り返しガウスぼかし近似。小さなホワイトノイズをぼかしてから
         /// バイリニアにアップサンプリングするため、巨大半径の直接ぼかしより高速。
         /// </summary>
         public static float[] LargeScaleNoise(int width, int height, float effectiveSigma, int seed)
@@ -80,7 +80,7 @@ namespace MitarashiDango.RoadAssetGenerator
             return BilinearUpsample(smoothed, smallW, smallH, width, height);
         }
 
-        /// <summary>タイル可能なバイリニアアップサンプル(wrap モード)。</summary>
+        /// <summary>境界を折り返す、タイルとして繰り返せるバイリニアアップサンプル。</summary>
         public static float[] BilinearUpsample(float[] src, int srcW, int srcH, int dstW, int dstH)
         {
             var dst = new float[dstW * dstH];
@@ -111,7 +111,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         /// <summary>
-        /// 帯域制限したノイズレイヤーの総和。<paramref name="scales"/> はピクセル単位のシグマ、
+        /// 帯域制限したノイズ層の総和。<paramref name="scales"/> はピクセル単位のシグマ、
         /// <paramref name="weights"/> は各帯域の振幅。
         /// </summary>
         public static float[] MultiScale(int width, int height, float[] scales, float[] weights, int seed)
@@ -170,7 +170,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
         private static int WrapIndex(int index, int length)
         {
-            // 負方向や length 超の大きなオフセットでも安全な分岐なし modulo。
+            // 負方向や length 超の大きなオフセットでも安全な剰余計算。
             return ((index % length) + length) % length;
         }
 
@@ -181,7 +181,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 case NoiseStyle.Smooth:
                     return (new[] { 1.5f, 4f, 12f }, new[] { 6f, 8f, 5f });
                 case NoiseStyle.Aggregate:
-                    // Standard に約 1.5 px の細かい帯域を 1 つ足したプロファイル。骨材 (アグリゲート)
+                    // Standard に約 1.5 px の細かい帯域を 1 つ足した設定。骨材
                     // の粒感がやや強調される。
                     return (new[] { 0.6f, 1.5f, 3f, 10f, 40f }, new[] { 26f, 16f, 13f, 10f, 7f });
                 case NoiseStyle.Coarse:

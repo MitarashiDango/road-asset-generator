@@ -19,9 +19,9 @@ namespace MitarashiDango.RoadAssetGenerator
             return strokes;
         }
 
-        // 各境界線は隣接レーン間に専用の U 軸スロットを占有する:
+        // 各境界線は隣接レーン間に専用の U 軸スロットを占有する。
         //   leftShoulder | line[0] スロット | lane[0] | line[1] スロット | lane[1] | ... | line[N] スロット | rightShoulder
-        // 各境界線の配置軸はスロット左端 + leftHalf に置かれ、最左 stroke の左端がスロット左端と一致する。
+        // 各境界線の配置軸はスロット左端 + leftHalf に置かれ、最左ストロークの左端がスロット左端と一致する。
         private static void ResolveBoundaryStrokes(List<LineStroke> strokes, in BakeContext ctx, Dictionary<Texture2D, (float[] pixels, int width, int height)> maskCache)
         {
             var config = ctx.config;
@@ -194,9 +194,9 @@ namespace MitarashiDango.RoadAssetGenerator
             maskStrength = Mathf.Clamp01(style.wearMaskStrength);
         }
 
-        // 各レーンの speedReductionDotLine 設定から派生する Y-shear Diamond stroke を生成する。
-        // LineStroke パイプラインを共有することで、StampStrokes / BuildMetallicSmoothness は境界線
-        // ストロークと同じ扱いで処理できる。
+        // 各レーンの speedReductionDotLine 設定から、Y 方向に斜行した Diamond ストロークを生成する。
+        // LineStroke の処理経路を共有することで、アルベドやメタリック/スムースネスの生成では
+        // 境界線ストロークと同じ扱いが可能。
         private static void ResolveSpeedReductionDotLines(List<LineStroke> strokes, in BakeContext ctx)
         {
             var config = ctx.config;
@@ -224,9 +224,8 @@ namespace MitarashiDango.RoadAssetGenerator
                     var placeLeft  = lane.speedReductionDotLineSide == SpeedReductionDotLineSide.Left  || lane.speedReductionDotLineSide == SpeedReductionDotLineSide.Both;
                     var placeRight = lane.speedReductionDotLineSide == SpeedReductionDotLineSide.Right || lane.speedReductionDotLineSide == SpeedReductionDotLineSide.Both;
 
-                    // slant は「車線内側に位置する側が V+ 方向に上がる」と解釈する。LEFT 側 stroke は
-                    // 入力 slant をそのまま使い、RIGHT 側 stroke は反転して左右が同じルールに従うように
-                    // ミラーする。
+                    // Slant は「車線内側に位置する側が V+ 方向に上がる」と解釈する。
+                    // 左側ストロークは入力値をそのまま使い、右側ストロークは符号を反転して同じ規則にそろえる。
                     if (placeLeft)
                     {
                         var xMeters = laneStart + lane.speedReductionDotLineInsetMeters + halfDotWidth;
@@ -265,7 +264,7 @@ namespace MitarashiDango.RoadAssetGenerator
             });
         }
 
-        // 各レーンの decelerationMark 設定から派生する V 字型シェブロン stroke を生成する。
+        // 各レーンの decelerationMark 設定から V 字型ストロークを生成する。
         // レーン中央に V 字を周期配置し、進行方向 (Forward/Backward) に応じて頂点の向きを反転する。
         private static void ResolveDecelerationMarks(List<LineStroke> strokes, in BakeContext ctx)
         {
@@ -300,21 +299,21 @@ namespace MitarashiDango.RoadAssetGenerator
 
         private static void AppendLaneDecelerationMark(List<LineStroke> strokes, LaneConfig lane, float laneStart, float laneEnd, float pxPerMx, float pxPerMy, ref int seedCounter)
         {
-            // レーン中央に配置。
+            // レーン中央に配置する。
             var xCenterMeters = (laneStart + laneEnd) * 0.5f;
             var xCenter = Mathf.RoundToInt(xCenterMeters * pxPerMx);
 
-            // 半幅 = max(指定幅/2, レーン半幅 - inset)。指定幅がレーン幅を超える場合はクリップ。
+            // 半幅 = min(指定幅 / 2, レーン半幅 - inset)。指定幅がレーン幅を超える場合はクリップする。
             var availableHalfWidth = Mathf.Max(0.05f, lane.widthMeters * 0.5f - lane.decelerationMarkInsetMeters);
             var halfWidthMeters = Mathf.Min(lane.decelerationMarkWidthMeters * 0.5f, availableHalfWidth);
             var halfW = Mathf.Max(1, Mathf.RoundToInt(halfWidthMeters * pxPerMx));
 
-            // 進行方向で V 字の頂点を決定。
+            // 進行方向で V 字の頂点を決定する。
             // 内部 v 軸 [0..1] は MarkingPattern が周期計算後に渡すローカル座標で、
             // v=0 が周期の先頭 (テクスチャ y が小さい側)、v=1 が末尾 (テクスチャ y が大きい側)。
-            // 通常 Unity の道路メッシュでは V+ (進行方向 forward) = テクスチャ y 大の方向に対応するため、
-            //   Forward → 頂点を v=1 側 (テクスチャ y 大 = 進行方向の前方) に → pointAtTop=false
-            //   Backward → 頂点を v=0 側 (進行方向の前方) に → pointAtTop=true
+            // 通常 Unity の道路メッシュでは V+ (Forward) がテクスチャ y 大の方向に対応するため、
+            //   Forward → 頂点を v=1 側 (テクスチャ y 大 = 進行方向の前方) に置くため pointAtTop=false
+            //   Backward → 頂点を v=0 側 (進行方向の前方) に置くため pointAtTop=true
             var pointAtTop = lane.direction == LaneDirection.Backward;
 
             // 厚みは「足元の V 軸方向の長さ」として正規化する。

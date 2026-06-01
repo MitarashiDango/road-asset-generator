@@ -3,9 +3,9 @@ using UnityEngine;
 namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
-    /// 鋭い頂点を持つ V 字 (シェブロン) 形状。
+    /// 鋭い頂点を持つ V 字形状。
     /// 外側 V (頂点 (0,0)、足元 (±1, 1-h)) と内側 V (頂点 (0, h)、足元 (±1, 1)) の間のバンド領域。
-    /// 外側 V が鋭い頂点を、足元の (u=±1, v∈[1-h, 1]) が垂直エッジ (車線境界と平行) を提供する。
+    /// 外側 V が鋭い頂点を、足元の (u=±1, v∈[1-h, 1]) が車線境界と平行な垂直端を提供する。
     /// </summary>
     public sealed class ChevronPrimitive : IShapePrimitive
     {

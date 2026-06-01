@@ -4,7 +4,7 @@ using UnityEngine;
 namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
-    /// 塗装マーク(境界線ストローク、レーンの山形マーカー、減速帯)の高さを高さマップに加算し、
+    /// 塗装マーク (境界線ストローク、レーンの減速マーク、減速帯) の高さを高さマップに加算し、
     /// 法線マップに塗装の凸が現れるようにする。lineWear が 1 に近づくにつれて塗装高さは減衰する。
     /// </summary>
     internal static class PaintHeightStamper

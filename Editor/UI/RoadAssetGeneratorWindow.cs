@@ -9,19 +9,19 @@ using UnityEngine.UIElements;
 namespace MitarashiDango.RoadAssetGenerator
 {
     /// <summary>
-    /// <see cref="RoadConfig"/> の編集とテクスチャ・マテリアルのベイクを行うメインのエディタウィンドウ。
+    /// <see cref="RoadConfig"/> の編集とテクスチャ・マテリアル生成を行うメインのエディタウィンドウ。
     /// UI Toolkit アセット (<c>RoadAssetGeneratorWindow.uxml</c>) と、レーンや境界線を動的に組み立てる
     /// セクションで構成される。
     /// </summary>
     public class RoadAssetGeneratorWindow : EditorWindow
     {
-        // 現在バインドされているプリセットアセット。ユーザが選択していない場合は永続化されない
+        // 現在バインドされているプリセットアセット。ユーザーが選択していない場合は永続化されない
         // 一時アセット (HideFlags.DontSave) を指す。
         [SerializeField] private RoadConfigAsset currentAsset;
         private RoadConfigAsset tempAsset;
         private SerializedObject serializedObject;
 
-        // CreateGUI で解決した UI 参照のキャッシュ。
+        // CreateGUI で解決した UI 参照を保持する。
         private ObjectField presetField;
         private VisualElement lanesContainer;
         private VisualElement linesContainer;
@@ -38,7 +38,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // -----------------------------------------------------------------
-        // CreateGUI:UI Toolkit のメインエントリポイント
+        // CreateGUI: UI Toolkit のメインエントリポイント
         // -----------------------------------------------------------------
         public void CreateGUI()
         {
@@ -126,7 +126,7 @@ namespace MitarashiDango.RoadAssetGenerator
             {
                 tempAsset = ScriptableObject.CreateInstance<RoadConfigAsset>();
                 tempAsset.name = "(Unsaved Preset)";
-                // DontSave で永続化を抑制しつつ、SerializedObject 経由の通常の編集は可能にする。
+                // DontSave で永続化を抑制しつつ、SerializedObject 経由の通常編集を可能にする。
                 tempAsset.hideFlags = HideFlags.DontSave;
                 tempAsset.config = RoadConfig.PresetMountainRoad_NoOvertaking();
             }
@@ -149,7 +149,7 @@ namespace MitarashiDango.RoadAssetGenerator
             currentAsset.config.EnsureLineCount();
             serializedObject = new SerializedObject(currentAsset);
 
-            // 子フィールドが見た目上 disabled に見えないよう、ObjectField には常に実バインド先を表示する
+            // 子フィールドが無効状態に見えないよう、ObjectField には常に実バインド先を表示する
             // (一時アセットの場合も含む)。
             if (presetField != null && !ReferenceEquals(presetField.value, asset))
             {
@@ -199,7 +199,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // -----------------------------------------------------------------
-        // Lanes セクション(手動再構築)
+        // Lanes セクション (手動再構築)
         // -----------------------------------------------------------------
         private void RebuildLanesSection()
         {
@@ -249,7 +249,7 @@ namespace MitarashiDango.RoadAssetGenerator
             header.Add(removeBtn);
             wrapper.Add(header);
 
-            // ラベル / 幅などの基本フィールドはヘッダではなく Foldout 本体に置くことで、ヘッダ行が
+            // ラベル / 幅などの基本フィールドはヘッダーではなく Foldout 本体に置くことで、ヘッダー行が
             // 横方向に膨張するのを防ぐ。内部ラベルを持たせて、サブセクションのフィールドと見た目を
             // 揃える。
             var labelField = new TextField("Label");
@@ -416,7 +416,7 @@ namespace MitarashiDango.RoadAssetGenerator
             AddBoundFloat(detailGroup, laneProp, "speedReductionDotLineSlantMeters", "Slant (m)",
                 "ドット 2 列間の V 軸オフセット。正値: 車線内側が進行方向に向かって傾く (進行方向にドットがリーン)。負値: 逆方向。0: 矩形。Side=Both のとき右側ストロークは自動ミラー、Backward レーンは斜行が自動反転されるため、両側を持つ 2 車線道路でも単一の正値で正しい見た目になる。");
             AddBoundFloat(detailGroup, laneProp, "speedReductionDotLineInsetMeters", "Edge Inset (m)",
-                "選択した車線端からドットの最も近い縁までの距離。区画線・路側帯との間隔を確保するために使う。");
+                "選択した車線端からドットの最も近い縁までの距離。区画線・路側帯との間隔を確保するために使用する。");
             AddBoundEnum(detailGroup, laneProp, "speedReductionDotLineSide", "Side",
                 "ドットラインを配置する車線端。'Both' で両端に同じ斜行のドット列を 2 本配置。");
             AddBoundFloat(detailGroup, laneProp, "speedReductionDotLineStartOffsetMeters", "Start Offset (m)",
@@ -571,7 +571,7 @@ namespace MitarashiDango.RoadAssetGenerator
             }
         }
 
-        // 各 line foldout は、並べ替え/削除ボタン付きの動的な stroke リストと「Add Stroke」ボタンを表示する。
+        // 各境界線の Foldout には、並べ替え/削除ボタン付きのストローク一覧と「Add Stroke」ボタンを表示する。
         private VisualElement BuildLineRow(int index, SerializedProperty lineProp)
         {
             var labelStr = lineProp.FindPropertyRelative("label").stringValue;
@@ -756,7 +756,7 @@ namespace MitarashiDango.RoadAssetGenerator
             }
             Undo.RecordObject(currentAsset, "Remove Line Stroke");
             line.strokes.RemoveAt(strokeIdx);
-            // spacingsMeters は Count - 1 個。削除した stroke を挟んでいた gap を 1 つ取り除く。
+            // spacingsMeters は Count - 1 個。削除したストロークを挟んでいた間隔を 1 つ取り除く。
             if (line.spacingsMeters != null && line.spacingsMeters.Count > 0)
             {
                 var spacingToRemove = Mathf.Min(strokeIdx, line.spacingsMeters.Count - 1);
@@ -806,9 +806,9 @@ namespace MitarashiDango.RoadAssetGenerator
             return Mathf.Abs(ratio - Mathf.Round(ratio)) <= tolerance;
         }
 
-        // (size + newSpacing) が tileLength を割り切るような新 spacing を返す。元の値からの差が
-        // 最小になるように選び、minSpacing 以上を確保する。条件を満たす値が無い場合(size が
-        // 既に tileLength を超えている等)は float.NaN を返す。
+        // (size + newSpacing) が tileLength を割り切るような新しい spacing を返す。
+        // 元の値からの差が最小になる値を選択し、minSpacing 以上を確保する。
+        // 条件を満たす値がない場合 (size が既に tileLength を超えている等) は float.NaN を返す。
         private static float SnapSpacingToTile(float size, float currentSpacing, float tileLength, float minSpacing)
         {
             if (tileLength <= 0f || size <= 0f)
@@ -823,8 +823,8 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             // (tileLength / currentPeriod) に最も近い整数 N を選んで newSpacing = (tileLength / N) - size
-            // を導出する。minSpacing を下回る場合は N を 1 ずつ減らして(= 周期を長く / spacing を大きく)
-            // 条件を満たす値を探す。
+            // を導出する。minSpacing を下回る場合は N を 1 ずつ減らして (= 周期を長く / spacing を大きく)
+            // 条件を満たす値を探索する。
             var n = Mathf.Max(1, Mathf.RoundToInt(tileLength / curPeriod));
             while (n > 1)
             {
@@ -835,13 +835,13 @@ namespace MitarashiDango.RoadAssetGenerator
                 }
                 n--;
             }
-            // n == 1:タイルあたりマーカー 1 個。それでも収まらなければ NaN。
+            // n == 1: タイルあたりマーク 1 個。それでも収まらなければ NaN。
             var fallback = tileLength - size;
             return fallback >= minSpacing ? fallback : float.NaN;
         }
 
-        // spacing をスナップして同時に offset を再センタリングし、パターンがタイル内で対称になるようにする。
-        // 3 つの「Snap & center」ボタン(Dashed / Diamond の LineStyle、減速帯、レーン山形マーカー)から
+        // spacing をスナップして同時に offset を中央へ寄せ、パターンがタイル内で対称になるようにする。
+        // 「Snap & center」ボタン (Dashed / Diamond の LineStyle、減速帯、減速ドットライン、減速マーク) から
         // 共有される。
         private static void SnapAndCenter(SerializedProperty sizeProp, SerializedProperty spacingProp, SerializedProperty offsetProp, float tileLength, float minSpacing)
         {
@@ -952,7 +952,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
             var dashLengthField = AddBoundFloat(section, styleProp, "dashLengthMeters", "Dash Length (m)");
             var dashGapField    = AddBoundFloat(section, styleProp, "dashGapMeters",    "Dash Gap (m)");
-            // dashOffsetMeters は Diamond の位相オフセットも兼ねている。
+            // dashOffsetMeters は Diamond の位相オフセットも兼ねる。
             var dashOffsetField = AddBoundFloat(section, styleProp, "dashOffsetMeters", "Dash / Phase Offset (m)");
 
             var diamondSizeField    = AddBoundFloat(section, styleProp, "diamondSizeMeters",    "Diamond Size (m)");
@@ -1001,7 +1001,7 @@ namespace MitarashiDango.RoadAssetGenerator
             wearFoldout.Add(maskDetailGroup);
 
             var maskWarning = new HelpBox(
-                "Override Weathering が OFF のため、Wear Mask は Weathering の Line Edge Wear をベースの摩耗量として使います。マスクだけで摩耗させたい場合は ON にして、このストロークの Line Edge Wear を 0 にしてください。",
+                "Override Weathering が OFF のため、Wear Mask は Weathering の Line Edge Wear をベースの摩耗量として使用します。マスクのみで摩耗させる場合は ON にし、このストロークの Line Edge Wear を 0 にしてください。",
                 HelpBoxMessageType.Info);
             wearFoldout.Add(maskWarning);
             section.Add(wearFoldout);
@@ -1326,7 +1326,7 @@ namespace MitarashiDango.RoadAssetGenerator
             var pxPerM = rect.width / c.TotalWidthMeters;
             c.EnsureLineCount();
 
-            // パス 1:路側帯とレーンを描画(line slot 部分は塗らずアスファルトを透過)。
+            // パス 1: 路側帯とレーンを描画 (境界線スロット部分は塗らず、アスファルト色を見せる)。
             var xCursor = rect.x;
             var lsW = c.leftShoulder.widthMeters * pxPerM;
             EditorGUI.DrawRect(new Rect(xCursor, rect.y, lsW, rect.height), shoulderCol);
@@ -1348,7 +1348,7 @@ namespace MitarashiDango.RoadAssetGenerator
             var rsW = c.rightShoulder.widthMeters * pxPerM;
             EditorGUI.DrawRect(new Rect(xCursor, rect.y, rsW, rect.height), shoulderCol);
 
-            // パス 2:各境界線をその配置軸 (slot_left + leftHalf) に描画する。
+            // パス 2: 各境界線を配置軸 (slot_left + leftHalf) に描画する。
             xCursor = rect.x + lsW;
             for (var b = 0; b <= c.lanes.Count; b++)
             {
@@ -1402,7 +1402,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 return;
             }
 
-            // Dashed と Diamond は粗いダッシュ近似を共有する。実テクスチャの方が描画の正確性において優先される。
+            // Dashed と Diamond は簡易的な破線表示を共有する。正確な見た目は生成テクスチャ側を優先する。
             const int dashes = 6;
             var dashH = rect.height / (dashes * 2);
             for (var i = 0; i < dashes; i++)
@@ -1412,7 +1412,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // -----------------------------------------------------------------
-        // Albedo プレビューサムネイル
+        // アルベドプレビューサムネイル
         // -----------------------------------------------------------------
         private void RefreshAlbedoPreview()
         {
@@ -1444,7 +1444,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // -----------------------------------------------------------------
-        // Output Folder のブラウズ(OS のフォルダ選択ダイアログ、結果はプロジェクト相対に変換)
+        // Output Folder の参照 (OS のフォルダ選択ダイアログ、結果はプロジェクト相対に変換)
         // -----------------------------------------------------------------
         private void BrowseOutputFolder()
         {
@@ -1541,7 +1541,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 var paths = RoadMaterialFactory.SaveAndCreateAssets(gen, currentAsset.config);
                 EditorUtility.ClearProgressBar();
 
-                Debug.Log($"[RoadAssetGenerator] Generated assets in {currentAsset.config.output.outputFolder}");
+                Debug.Log($"[RoadAssetGenerator] Generated assets in {folder}");
 
                 if (!string.IsNullOrEmpty(paths.materialPath))
                 {
@@ -1554,7 +1554,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 }
                 EditorUtility.DisplayDialog(
                     "Road Asset Generator",
-                    $"Successfully generated.\n\nFolder: {currentAsset.config.output.outputFolder}\nName Prefix: {currentAsset.config.output.namePrefix}\n\n" +
+                    $"Successfully generated.\n\nFolder: {folder}\nName Prefix: {prefix}\n\n" +
                     $"Road dimensions: width {currentAsset.config.TotalWidthMeters:F2} m × tile length {currentAsset.config.output.textureLengthMeters:F1} m.\n" +
                     "Set the target mesh's UV tiling so the texture is mapped at 1 m = 1 unit.",
                     "OK");
@@ -1597,7 +1597,7 @@ namespace MitarashiDango.RoadAssetGenerator
         }
 
         // -----------------------------------------------------------------
-        // バインド済みフィールドの生成ヘルパー(セクションビルダーが上から下に読めるよう小さく保つ)
+        // バインド済みフィールドの生成ヘルパー (セクション構築処理が上から下に読めるよう小さく保つ)
         // -----------------------------------------------------------------
         private static FloatField AddBoundFloat(VisualElement parent, SerializedProperty owner, string relativeName, string label, string tooltip = null)
         {

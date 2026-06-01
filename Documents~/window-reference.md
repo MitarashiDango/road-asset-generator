@@ -58,13 +58,13 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 ### 生成トグル (Normal / MetalSmooth / AO / Material)
 
 - bool × 4, default 全 true
-- 各マップ・マテリアルの生成有無を切り替えます。
+- Normal、MetalSmooth、AO、Material の生成有無を切り替えます。Albedo は常に生成されます。
 
 ---
 
 ## Shoulders (路側帯)
 
-道路両端の路側帯設定です。左右独立に設定できます。
+道路両端の路側帯設定です。左右独立に設定可能です。
 
 ### Width (m) (Left / Right)
 
@@ -80,7 +80,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 ## Lanes
 
-走行レーンの設定です。`+ Add Lane` ボタンで車線を追加できます。境界線数は車線数 + 1 で自動管理されます。
+走行レーンの設定です。`+ Add Lane` ボタンで車線を追加可能です。境界線数は車線数 + 1 で自動管理されます。
 
 各車線は以下の 4 ブロックに分かれます:
 
@@ -165,7 +165,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 ### Rumble Strips (減速帯)
 
-車線端に並ぶ V 軸方向の帯状凹凸舗装。走行時の振動で車線逸脱を警告する。
+車線端に並ぶ V 軸方向の帯状凹凸舗装。走行時の振動で車線逸脱を警告するための表現です。
 
 #### Enable
 
@@ -174,11 +174,11 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 #### Stripe Thickness (m)
 
 - float, ≥0.05, default 0.30
-- 帯 1 本の太さ。
+- 帯 1 本の V 軸方向の太さ。
 
 #### Stripe Spacing (m)
 
-- float, ≥0.1, default 1.0
+- float, ≥0.1, default 0.70
 - 帯と帯の間隔 (gap の長さ)。
 
 #### Stripe Color
@@ -187,7 +187,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 #### Start Offset (m)
 
-- float, default 0.5
+- float, default 0.35
 - タイル先頭 (V=0) から最初の帯までのオフセット。
 
 #### Edge Inset (m)
@@ -221,12 +221,12 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 #### Dot Height (m)
 
-- float, ≥0.05, default 1.5
+- float, ≥0.05, default 1.0
 - ドットの V 軸方向の長さ。
 
 #### Dot Spacing (m)
 
-- float, ≥0.1, default 1.5
+- float, ≥0.1, default 1.0
 - ドット間の間隔 (gap の長さ)。
 
 #### Dot Color
@@ -240,7 +240,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 #### Edge Inset (m)
 
-- float, ≥0.0, default 0.30
+- float, ≥0.0, default 0.20
 - 車線端からドットまでの距離。
 
 #### Side
@@ -250,7 +250,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 #### Start Offset (m)
 
-- float, default 0.75
+- float, default 0.5
 - タイル内の V 軸方向の位相オフセット。
 
 #### Paint Height Factor
@@ -280,7 +280,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 #### Mark Width (m)
 
-- float, ≥0.3, default 2.5
+- float, ≥0.3, default 2.0
 - V 字の開口幅 (U 軸方向の最大幅)。レーン幅 - 2 × Edge Inset を超える場合は自動でクリップされる。
 
 #### Mark Height (m)
@@ -290,7 +290,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 #### Mark Spacing (m)
 
-- float, ≥0.5, default 5.0
+- float, ≥0.5, default 4.0
 - 隣接する V 字マーク間の V 軸方向ギャップ。
 
 #### Line Thickness (m)
@@ -305,7 +305,7 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 #### Start Offset (m)
 
-- float, default 0.0
+- float, default 2.0
 - タイル内の V 軸方向の位相オフセット。
 
 #### Paint Height Factor
@@ -362,8 +362,8 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 #### Diamond Size (m) / Diamond Spacing (m) / Diamond Slant (m) (Type=Diamond のみ)
 
-- **Diamond Size**: ダイヤの V 軸方向サイズ (default 0.8)
-- **Diamond Spacing**: ダイヤ間の間隔 (default 1.5)
+- **Diamond Size**: ダイヤの V 軸方向サイズ (default 1.0)
+- **Diamond Spacing**: ダイヤ間の間隔 (default 1.0)
 - **Diamond Slant**: V 軸方向のシアー量 (default 0.3)
 
 #### Dash / Phase Offset (m) (Type=Dashed / Diamond)
@@ -379,10 +379,10 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 #### Wear (劣化)
 
 - `Override Weathering`: bool, default false。ON の場合、このストロークだけ Weathering の `Line Edge Wear` / `Line Fade` を上書きする。
-- `Line Edge Wear`: float (Slider), 0.0 〜 1.0, default 0.15。ストローク単位の摩耗量。Albedo、Normal、Metallic/Smoothness に反映される。`Override Weathering` が ON の場合、Albedo も摩耗量に応じて下地色へ寄る。
-- `Line Fade`: float (Slider), 0.0 〜 1.0, default 0.08。ストローク単位の色フェード量。
+- `Line Edge Wear`: float (Slider), 0.0 〜 1.0, default 0.15。ストローク単位の摩耗量。アルベド、法線、メタリック/スムースネスに反映される。`Override Weathering` が ON の場合、アルベドも摩耗量に応じて下地色へ近づく。
+- `Line Fade`: float (Slider), 0.0 〜 1.0, default 0.08。ストローク単位の退色量。
 - `Wear Mask`: Texture2D。グレースケール画像で、白い部分ほど追加摩耗が強くなる。Read/Write 無効のテクスチャも一時コピー経由で読み取る。
-- マスク値はテクスチャの Import Settings に従って解釈される。線形値として扱いたい場合は、マスクテクスチャの sRGB をオフにする。
+- マスク値はテクスチャの Import Settings に従って解釈される。線形値として扱う場合は、マスクテクスチャの sRGB をオフにする。
 - `Mask Strength`: float (Slider), 0.0 〜 1.0, default 1.0。マスク由来の追加摩耗量。
 - `Mask Tiling`: enum (`StretchAlongV` / `RepeatAlongV`), default `StretchAlongV`。V 軸方向に 1 タイルへ伸ばすか、指定長で繰り返すかを選ぶ。
 - `Mask Tile Length (m)`: float, min 0.1, default 10.0。`RepeatAlongV` の繰り返し長。
@@ -429,12 +429,18 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 ### Line Edge Wear
 
 - float (Slider), 0.0 〜 1.0, default 0.15
-- 線の縁の摩耗。1.0 で完全摩耗。
+- 路面標示の摩耗量。アルベドでは塗装色を下地色へ寄せ、法線では塗装の高さを弱めます。1.0 で完全摩耗。
 
 ### Line Fade
 
 - float (Slider), 0.0 〜 1.0, default 0.08
-- 線の色のフェード強度。
+- 路面標示全体の退色量。値を上げると、塗装色が少し灰色寄りになります。
+
+### Line Edge Fade
+
+- float (Slider), 0.0 〜 1.0, default 0.08
+- 路面標示の端を下地色になじませる強度。0.0 で端までくっきり描画し、値を上げるほど端のピクセルが薄くなります。
+- 対象になる端は U 軸方向の左右端と、破線・減速ドットライン・減速マークなどの V 軸方向の先頭/末尾です。実線のように V 軸方向へ連続する標示には、V 端の処理は入りません。
 
 ### Tire Track Wear
 
@@ -486,4 +492,4 @@ Road Asset Generator のエディタウィンドウに表示される全パラ�
 
 ### Generate Textures + Material
 
-- 4 種のマップとマテリアルを `Output Folder` に生成します。同名ファイルが存在する場合は上書き確認ダイアログが表示されます。
+- 各種マップとマテリアルを `Output Folder` に生成します。同名ファイルが存在する場合は上書き確認ダイアログが表示されます。
