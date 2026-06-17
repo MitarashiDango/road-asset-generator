@@ -1,7 +1,9 @@
 {
     "name": "MitarashiDango.RoadAssetGenerator",
     "rootNamespace": "MitarashiDango.RoadAssetGenerator",
-    "references": [],
+    "references": [
+        "MitarashiDango.RoadAssetGenerator.Runtime"
+    ],
     "includePlatforms": [
         "Editor"
     ],

@@ -1,0 +1,21 @@
+{
+    "name": "MitarashiDango.RoadAssetGenerator.Editor.Tests",
+    "rootNamespace": "MitarashiDango.RoadAssetGenerator.Tests",
+    "references": [
+        "MitarashiDango.RoadAssetGenerator.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}
