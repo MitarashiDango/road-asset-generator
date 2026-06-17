@@ -24,6 +24,16 @@ namespace MitarashiDango.RoadAssetGenerator
         /// <summary>始点からの距離を指定してスプラインを評価する。</summary>
         public SplineSample SampleByDistance(float distanceMeters)
         {
+            return SampleByDistance(distanceMeters, Vector3.up, Vector3.forward, Vector3.right);
+        }
+
+        /// <summary>指定した参照軸を基準に、始点からの距離でスプラインを評価する。</summary>
+        public SplineSample SampleByDistance(
+            float distanceMeters,
+            Vector3 referenceUp,
+            Vector3 fallbackForward,
+            Vector3 fallbackRight)
+        {
             if (!spline.IsValid)
             {
                 return default;
@@ -31,7 +41,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
             if (distances.Length == 0)
             {
-                var frame = spline.EvaluateFrame(0f);
+                var frame = spline.EvaluateFrame(0f, referenceUp, fallbackForward, fallbackRight);
                 return new SplineSample(0f, 0f, frame.position, frame.tangent, frame, 0f);
             }
 
@@ -39,7 +49,7 @@ namespace MitarashiDango.RoadAssetGenerator
             var parameter = ParameterAtDistance(clampedDistance);
             var position = spline.EvaluatePosition(parameter);
             var tangent = spline.EvaluateTangent(parameter);
-            var frameAtDistance = spline.EvaluateFrame(parameter);
+            var frameAtDistance = spline.EvaluateFrame(parameter, referenceUp, fallbackForward, fallbackRight);
             var curvature = spline.EstimateCurvature(parameter);
             return new SplineSample(clampedDistance, parameter, position, tangent, frameAtDistance, curvature);
         }

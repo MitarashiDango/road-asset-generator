@@ -125,19 +125,34 @@ namespace MitarashiDango.RoadAssetGenerator
         /// <summary>指定パラメータでの道路用フレームを評価する。</summary>
         public SplineFrame EvaluateFrame(float parameter)
         {
+            return EvaluateFrame(parameter, Vector3.up, Vector3.forward, Vector3.right);
+        }
+
+        /// <summary>指定した参照軸を基準に道路用フレームを評価する。</summary>
+        public SplineFrame EvaluateFrame(
+            float parameter,
+            Vector3 referenceUp,
+            Vector3 fallbackForward,
+            Vector3 fallbackRight)
+        {
             var position = EvaluatePosition(parameter);
             var tangent = EvaluateTangent(parameter);
-            var referenceUp = Vector3.up;
-            var right = Vector3.Cross(referenceUp, tangent);
+            var upReference = NormalizeOrFallback(referenceUp, Vector3.up);
+            var right = Vector3.Cross(upReference, tangent);
             if (right.sqrMagnitude <= 0.0001f)
             {
-                referenceUp = Vector3.forward;
-                right = Vector3.Cross(referenceUp, tangent);
+                upReference = NormalizeOrFallback(fallbackForward, Vector3.forward);
+                right = Vector3.Cross(upReference, tangent);
             }
             if (right.sqrMagnitude <= 0.0001f)
             {
-                referenceUp = Vector3.right;
-                right = Vector3.Cross(referenceUp, tangent);
+                upReference = NormalizeOrFallback(fallbackRight, Vector3.right);
+                right = Vector3.Cross(upReference, tangent);
+            }
+            if (right.sqrMagnitude <= 0.0001f)
+            {
+                upReference = GetLeastAlignedAxis(tangent);
+                right = Vector3.Cross(upReference, tangent);
             }
 
             right = right.normalized;
@@ -269,6 +284,25 @@ namespace MitarashiDango.RoadAssetGenerator
             var weightA = (tb - t) / denominator;
             var weightB = (t - ta) / denominator;
             return a * weightA + b * weightB;
+        }
+
+        private static Vector3 NormalizeOrFallback(Vector3 value, Vector3 fallback)
+        {
+            return value.sqrMagnitude > Epsilon * Epsilon ? value.normalized : fallback;
+        }
+
+        private static Vector3 GetLeastAlignedAxis(Vector3 tangent)
+        {
+            var xAlignment = Mathf.Abs(Vector3.Dot(tangent, Vector3.right));
+            var yAlignment = Mathf.Abs(Vector3.Dot(tangent, Vector3.up));
+            var zAlignment = Mathf.Abs(Vector3.Dot(tangent, Vector3.forward));
+
+            if (xAlignment <= yAlignment && xAlignment <= zAlignment)
+            {
+                return Vector3.right;
+            }
+
+            return yAlignment <= zAlignment ? Vector3.up : Vector3.forward;
         }
 
         private void ToSegmentParameter(float parameter, out int segmentIndex, out float u)
