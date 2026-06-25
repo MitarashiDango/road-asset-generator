@@ -12,8 +12,8 @@ namespace MitarashiDango.RoadAssetGenerator
         [Min(0.1f)] public float textureLengthMeters = 10f;
         [Min(1f)] public float meshSegmentLengthMeters = 100f;
         [Min(0f)] public float markingVertexOffsetMeters = 0.005f;
-        [Min(0.25f)] public float maxSurfaceSampleLengthMeters = 4f;
-        [Range(1f, 45f)] public float maxSurfaceSampleAngleDegrees = 8f;
+        [Min(0.25f)] public float maxSurfaceSampleLengthMeters = 1f;
+        [Range(1f, 45f)] public float maxSurfaceSampleAngleDegrees = 4f;
 
         public Material surfaceMaterial;
         public Material markingMaterial;

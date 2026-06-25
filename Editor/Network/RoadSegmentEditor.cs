@@ -21,10 +21,14 @@ namespace MitarashiDango.RoadAssetGenerator
                 serializedObject,
                 "m_Script",
                 "roadNetwork",
+                "overrideSurfaceSamplingSettings",
+                "maxSurfaceSampleLengthMeters",
+                "maxSurfaceSampleAngleDegrees",
                 "surfacesRoot",
                 "markingsRoot",
                 "generatedSurfaceObjects",
                 "generatedMarkingObjects");
+            DrawSurfaceSamplingUi();
             var changed = EditorGUI.EndChangeCheck();
             var applied = serializedObject.ApplyModifiedProperties();
             if (changed && applied)
@@ -38,6 +42,24 @@ namespace MitarashiDango.RoadAssetGenerator
             DrawControlPointUtilityButtons();
             DrawGenerationButtons();
             DrawGeneratedObjectInfo();
+        }
+
+        private void DrawSurfaceSamplingUi()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Surface Sampling", EditorStyles.boldLabel);
+
+            var overrideProperty = serializedObject.FindProperty("overrideSurfaceSamplingSettings");
+            var lengthProperty = serializedObject.FindProperty("maxSurfaceSampleLengthMeters");
+            var angleProperty = serializedObject.FindProperty("maxSurfaceSampleAngleDegrees");
+
+            EditorGUILayout.PropertyField(overrideProperty, new GUIContent("Override Surface Sampling"));
+            var enabled = overrideProperty.hasMultipleDifferentValues || overrideProperty.boolValue;
+            using (new EditorGUI.DisabledScope(!enabled))
+            {
+                EditorGUILayout.PropertyField(lengthProperty, new GUIContent("Max Surface Sample Length Meters"));
+                EditorGUILayout.PropertyField(angleProperty, new GUIContent("Max Surface Sample Angle Degrees"));
+            }
         }
 
         private void OnSceneGUI()

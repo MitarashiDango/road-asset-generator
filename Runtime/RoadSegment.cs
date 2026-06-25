@@ -22,6 +22,10 @@ namespace MitarashiDango.RoadAssetGenerator
         public RoadSegmentConnection startConnection = new RoadSegmentConnection();
         public RoadSegmentConnection endConnection = new RoadSegmentConnection();
 
+        public bool overrideSurfaceSamplingSettings;
+        [Min(0.25f)] public float maxSurfaceSampleLengthMeters = 1f;
+        [Range(1f, 45f)] public float maxSurfaceSampleAngleDegrees = 4f;
+
         public GameObject surfacesRoot;
         public GameObject markingsRoot;
         public List<GameObject> generatedSurfaceObjects = new List<GameObject>();

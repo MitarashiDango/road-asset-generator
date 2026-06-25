@@ -311,16 +311,21 @@ namespace MitarashiDango.RoadAssetGenerator
                     fallbackRight = segment.transform.InverseTransformDirection(Vector3.right);
                 }
 
-                if (network == null)
+                var textureLengthMeters = network != null ? network.textureLengthMeters : 10f;
+                var meshSegmentLengthMeters = network != null ? network.meshSegmentLengthMeters : 100f;
+                var maxSampleLengthMeters = network != null ? network.maxSurfaceSampleLengthMeters : 1f;
+                var maxSampleAngleDegrees = network != null ? network.maxSurfaceSampleAngleDegrees : 4f;
+                if (segment != null && segment.overrideSurfaceSamplingSettings)
                 {
-                    return new RoadSurfaceBuildSettings(10f, 100f, 4f, 8f, referenceUp, fallbackForward, fallbackRight);
+                    maxSampleLengthMeters = segment.maxSurfaceSampleLengthMeters;
+                    maxSampleAngleDegrees = segment.maxSurfaceSampleAngleDegrees;
                 }
 
                 return new RoadSurfaceBuildSettings(
-                    network.textureLengthMeters,
-                    network.meshSegmentLengthMeters,
-                    network.maxSurfaceSampleLengthMeters,
-                    network.maxSurfaceSampleAngleDegrees,
+                    textureLengthMeters,
+                    meshSegmentLengthMeters,
+                    maxSampleLengthMeters,
+                    maxSampleAngleDegrees,
                     referenceUp,
                     fallbackForward,
                     fallbackRight);

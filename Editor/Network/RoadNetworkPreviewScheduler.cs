@@ -172,6 +172,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 var hash = 17;
                 AddTransformHash(segment.transform, ref hash);
                 AddNetworkHash(segment.Network, ref hash);
+                AddSurfaceSamplingHash(segment, segment.Network, ref hash);
                 AddControlPointHash(segment.controlPoints, ref hash);
                 AddProfileKeyHash(segment.profileKeys, ref hash);
                 return hash;
@@ -196,9 +197,22 @@ namespace MitarashiDango.RoadAssetGenerator
             AddFloatHash(network.textureLengthMeters, ref hash);
             AddFloatHash(network.meshSegmentLengthMeters, ref hash);
             AddFloatHash(network.markingVertexOffsetMeters, ref hash);
-            AddFloatHash(network.maxSurfaceSampleLengthMeters, ref hash);
-            AddFloatHash(network.maxSurfaceSampleAngleDegrees, ref hash);
             hash = hash * 31 + (network.surfaceMaterial != null ? network.surfaceMaterial.GetInstanceID() : 0);
+        }
+
+        private static void AddSurfaceSamplingHash(RoadSegment segment, RoadNetwork network, ref int hash)
+        {
+            var usesSegmentOverride = segment != null && segment.overrideSurfaceSamplingSettings;
+            hash = hash * 31 + (usesSegmentOverride ? 1 : 0);
+            if (usesSegmentOverride)
+            {
+                AddFloatHash(segment.maxSurfaceSampleLengthMeters, ref hash);
+                AddFloatHash(segment.maxSurfaceSampleAngleDegrees, ref hash);
+                return;
+            }
+
+            AddFloatHash(network != null ? network.maxSurfaceSampleLengthMeters : 1f, ref hash);
+            AddFloatHash(network != null ? network.maxSurfaceSampleAngleDegrees : 4f, ref hash);
         }
 
         private static void AddControlPointHash(SplinePoint[] points, ref int hash)

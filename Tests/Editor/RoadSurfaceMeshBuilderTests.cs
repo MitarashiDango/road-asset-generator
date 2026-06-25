@@ -8,6 +8,24 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
     public class RoadSurfaceMeshBuilderTests
     {
         [Test]
+        public void RoadNetworkDefaultsUseFinerSurfaceSampling()
+        {
+            var networkObject = new GameObject("RoadNetwork_Default_Sampling_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+
+                Assert.That(network.maxSurfaceSampleLengthMeters, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(network.maxSurfaceSampleAngleDegrees, Is.EqualTo(4f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
         public void StraightSurfaceUsesProfileWidthAndTextureLengthUv()
         {
             var networkObject = new GameObject("RoadNetwork_Surface_Test");
@@ -190,6 +208,54 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             finally
             {
                 DestroyMeshes(meshes);
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void SegmentSurfaceSamplingOverrideTakesPriorityOverNetworkSettings()
+        {
+            var networkObject = new GameObject("RoadNetwork_Sampling_Override_Test");
+            var segmentObject = new GameObject("RoadSegment_Sampling_Override_Test");
+            var coarseMeshes = new List<RoadSurfaceMeshData>();
+            var fineMeshes = new List<RoadSurfaceMeshData>();
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.meshSegmentLengthMeters = 100f;
+                network.maxSurfaceSampleLengthMeters = 20f;
+                network.maxSurfaceSampleAngleDegrees = 45f;
+
+                segmentObject.transform.SetParent(networkObject.transform, false);
+                var segment = segmentObject.AddComponent<RoadSegment>();
+                segment.controlPoints = new[]
+                {
+                    new SplinePoint(new Vector3(0f, 0f, 0f)),
+                    new SplinePoint(new Vector3(0f, 0f, 15f)),
+                    new SplinePoint(new Vector3(15f, 0f, 30f)),
+                    new SplinePoint(new Vector3(30f, 0f, 30f)),
+                };
+                segment.profileKeys = new[]
+                {
+                    new RoadProfileKey { profile = RoadProfile.CreateDefaultTwoLane() },
+                };
+
+                coarseMeshes = RoadSurfaceMeshBuilder.Build(segment, network);
+
+                segment.overrideSurfaceSamplingSettings = true;
+                segment.maxSurfaceSampleLengthMeters = 1f;
+                segment.maxSurfaceSampleAngleDegrees = 4f;
+                fineMeshes = RoadSurfaceMeshBuilder.Build(segment, network);
+
+                Assert.That(coarseMeshes, Has.Count.EqualTo(1));
+                Assert.That(fineMeshes, Has.Count.EqualTo(1));
+                Assert.That(fineMeshes[0].mesh.vertexCount, Is.GreaterThan(coarseMeshes[0].mesh.vertexCount));
+            }
+            finally
+            {
+                DestroyMeshes(coarseMeshes);
+                DestroyMeshes(fineMeshes);
                 Object.DestroyImmediate(networkObject);
             }
         }
