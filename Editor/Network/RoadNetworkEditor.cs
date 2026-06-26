@@ -16,11 +16,23 @@ namespace MitarashiDango.RoadAssetGenerator
 
             EditorGUI.BeginChangeCheck();
             DrawNetworkProperties();
-            var changed = EditorGUI.EndChangeCheck();
+            var generationChanged = EditorGUI.EndChangeCheck();
+
+            EditorGUI.BeginChangeCheck();
+            DrawGeneratedLayerProperties();
+            var layerChanged = EditorGUI.EndChangeCheck();
+
             var applied = serializedObject.ApplyModifiedProperties();
-            if (changed && applied)
+            if (applied)
             {
-                ScheduleTargets();
+                if (layerChanged)
+                {
+                    ApplyTargetsGeneratedLayers(true);
+                }
+                if (generationChanged)
+                {
+                    ScheduleTargets();
+                }
             }
 
             EditorGUILayout.Space();
@@ -60,6 +72,18 @@ namespace MitarashiDango.RoadAssetGenerator
                     "Distance to lift generated markings from the road surface along the road normal."));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("maxSurfaceSampleLengthMeters"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("maxSurfaceSampleAngleDegrees"));
+        }
+
+        private void DrawGeneratedLayerProperties()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Generated Object Layers", EditorStyles.boldLabel);
+            DrawLayerProperty(
+                serializedObject.FindProperty("defaultGeneratedSurfaceLayer"),
+                new GUIContent("Default Surface Layer"));
+            DrawLayerProperty(
+                serializedObject.FindProperty("defaultGeneratedMarkingLayer"),
+                new GUIContent("Default Marking Layer"));
         }
 
         private void DrawGenerationButtons()
@@ -127,6 +151,30 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             return segments;
+        }
+
+        private static void DrawLayerProperty(SerializedProperty property, GUIContent label)
+        {
+            EditorGUI.showMixedValue = property.hasMultipleDifferentValues;
+            var value = EditorGUILayout.LayerField(
+                label,
+                RoadGeneratedLayerSettings.NormalizeLayer(property.intValue));
+            EditorGUI.showMixedValue = false;
+            if (value != property.intValue)
+            {
+                property.intValue = value;
+            }
+        }
+
+        private void ApplyTargetsGeneratedLayers(bool registerUndo)
+        {
+            foreach (var selectedTarget in targets)
+            {
+                foreach (var segment in CollectSegments((RoadNetwork)selectedTarget))
+                {
+                    RoadSegmentSurfaceGenerator.ApplyGeneratedLayers(segment, registerUndo);
+                }
+            }
         }
 
         private void ScheduleTargets()

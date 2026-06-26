@@ -117,6 +117,49 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             }
         }
 
+        [Test]
+        public void GeneratedLayersUseNetworkDefaultsAndIndependentSegmentOverrides()
+        {
+            var networkObject = new GameObject("RoadNetwork_Generated_Layer_Test");
+            RoadSegment segment = null;
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.defaultGeneratedSurfaceLayer = 3;
+                network.defaultGeneratedMarkingLayer = 4;
+                segment = CreateSegment(network, RoadProfile.CreateDefaultTwoLane(), 20f);
+
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+
+                AssertGeneratedLayer(segment.surfacesRoot, segment.generatedSurfaceObjects, 3);
+                AssertGeneratedLayer(segment.markingsRoot, segment.generatedMarkingObjects, 4);
+
+                segment.overrideGeneratedSurfaceLayer = true;
+                segment.generatedSurfaceLayer = 5;
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+
+                AssertGeneratedLayer(segment.surfacesRoot, segment.generatedSurfaceObjects, 5);
+                AssertGeneratedLayer(segment.markingsRoot, segment.generatedMarkingObjects, 4);
+
+                segment.overrideGeneratedSurfaceLayer = false;
+                segment.overrideGeneratedMarkingLayer = true;
+                segment.generatedMarkingLayer = 6;
+                RoadSegmentSurfaceGenerator.ApplyGeneratedLayers(segment, false);
+
+                AssertGeneratedLayer(segment.surfacesRoot, segment.generatedSurfaceObjects, 3);
+                AssertGeneratedLayer(segment.markingsRoot, segment.generatedMarkingObjects, 6);
+            }
+            finally
+            {
+                if (segment != null)
+                {
+                    RoadSegmentSurfaceGenerator.Clear(segment, false);
+                }
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
         private static RoadSegment CreateSegment(RoadNetwork network, RoadProfile profile, float lengthMeters)
         {
             var segmentObject = new GameObject("RoadSegment_Marking_Test");
@@ -180,6 +223,19 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             {
                 name = name,
             };
+        }
+
+        private static void AssertGeneratedLayer(GameObject root, IReadOnlyList<GameObject> generatedObjects, int expectedLayer)
+        {
+            Assert.That(root, Is.Not.Null);
+            Assert.That(root.layer, Is.EqualTo(expectedLayer));
+            Assert.That(generatedObjects, Is.Not.Null);
+            Assert.That(generatedObjects, Has.Count.GreaterThan(0));
+            foreach (var generatedObject in generatedObjects)
+            {
+                Assert.That(generatedObject, Is.Not.Null);
+                Assert.That(generatedObject.layer, Is.EqualTo(expectedLayer));
+            }
         }
 
         private static Color ReadMaterialColor(Material material)

@@ -16,6 +16,7 @@ namespace MitarashiDango.RoadAssetGenerator
         private const string MarkingObjectNamePrefix = "Marking";
         private const string UndoRegenerateName = "Regenerate Road Geometry";
         private const string UndoClearName = "Clear Road Geometry";
+        private const string UndoGeneratedLayerName = "Change Road Generated Layers";
         private const string BuiltInDepthBiasedMarkingShaderName = "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedBuiltIn";
         private const string UrpDepthBiasedMarkingShaderName = "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedURP";
         private static readonly Dictionary<int, int> GeneratedHierarchyUndoGroups = new Dictionary<int, int>();
@@ -161,6 +162,33 @@ namespace MitarashiDango.RoadAssetGenerator
             return surfacesOk && markingsOk;
         }
 
+        public static void ApplyGeneratedLayers(RoadSegment segment, bool registerUndo)
+        {
+            if (segment == null)
+            {
+                return;
+            }
+
+            var network = segment.Network;
+            var surfacesRoot = segment.surfacesRoot != null
+                ? segment.surfacesRoot
+                : FindDirectChild(segment.transform, SurfacesRootName);
+            var markingsRoot = segment.markingsRoot != null
+                ? segment.markingsRoot
+                : FindDirectChild(segment.transform, MarkingsRootName);
+
+            ApplyGeneratedLayer(
+                surfacesRoot,
+                segment.generatedSurfaceObjects,
+                RoadGeneratedLayerSettings.ResolveSurfaceLayer(segment, network),
+                registerUndo);
+            ApplyGeneratedLayer(
+                markingsRoot,
+                segment.generatedMarkingObjects,
+                RoadGeneratedLayerSettings.ResolveMarkingLayer(segment, network),
+                registerUndo);
+        }
+
         private static void CreateSurfaceObjects(
             RoadSegment segment,
             RoadNetwork network,
@@ -174,6 +202,8 @@ namespace MitarashiDango.RoadAssetGenerator
 
             var root = CreateRoot(segment, SurfacesRootName, registerUndo);
             segment.surfacesRoot = root;
+            var layer = RoadGeneratedLayerSettings.ResolveSurfaceLayer(segment, network);
+            root.layer = layer;
             var material = ResolveSurfaceMaterial(segment, network);
             segment.generatedSurfaceObjects = new List<GameObject>(meshes.Count);
 
@@ -181,6 +211,7 @@ namespace MitarashiDango.RoadAssetGenerator
             {
                 var meshData = meshes[i];
                 var surfaceObject = new GameObject($"{SurfaceObjectNamePrefix}_{i:000}");
+                surfaceObject.layer = layer;
                 var meshFilter = surfaceObject.AddComponent<MeshFilter>();
                 var meshRenderer = surfaceObject.AddComponent<MeshRenderer>();
                 meshFilter.sharedMesh = meshData.mesh;
@@ -203,12 +234,15 @@ namespace MitarashiDango.RoadAssetGenerator
 
             var root = CreateRoot(segment, MarkingsRootName, registerUndo);
             segment.markingsRoot = root;
+            var layer = RoadGeneratedLayerSettings.ResolveMarkingLayer(segment, network);
+            root.layer = layer;
             segment.generatedMarkingObjects = new List<GameObject>(meshes.Count);
 
             for (var i = 0; i < meshes.Count; i++)
             {
                 var meshData = meshes[i];
                 var markingObject = new GameObject($"{MarkingObjectNamePrefix}_{i:000}");
+                markingObject.layer = layer;
                 var meshFilter = markingObject.AddComponent<MeshFilter>();
                 var meshRenderer = markingObject.AddComponent<MeshRenderer>();
                 var material = CreateMarkingMaterial(meshData, network);
@@ -337,6 +371,61 @@ namespace MitarashiDango.RoadAssetGenerator
             root.transform.localRotation = Quaternion.identity;
             root.transform.localScale = Vector3.one;
             return root;
+        }
+
+        private static void ApplyGeneratedLayer(
+            GameObject root,
+            IReadOnlyList<GameObject> generatedObjects,
+            int layer,
+            bool registerUndo)
+        {
+            layer = RoadGeneratedLayerSettings.NormalizeLayer(layer);
+            if (root != null)
+            {
+                SetLayerRecursively(root, layer, registerUndo);
+                return;
+            }
+
+            if (generatedObjects == null)
+            {
+                return;
+            }
+
+            foreach (var generatedObject in generatedObjects)
+            {
+                if (generatedObject != null)
+                {
+                    SetLayer(generatedObject, layer, registerUndo);
+                }
+            }
+        }
+
+        private static void SetLayerRecursively(GameObject root, int layer, bool registerUndo)
+        {
+            var transforms = root.GetComponentsInChildren<Transform>(true);
+            foreach (var child in transforms)
+            {
+                if (child != null)
+                {
+                    SetLayer(child.gameObject, layer, registerUndo);
+                }
+            }
+        }
+
+        private static void SetLayer(GameObject gameObject, int layer, bool registerUndo)
+        {
+            if (gameObject == null || gameObject.layer == layer)
+            {
+                return;
+            }
+
+            if (registerUndo)
+            {
+                Undo.RecordObject(gameObject, UndoGeneratedLayerName);
+            }
+
+            gameObject.layer = layer;
+            EditorUtility.SetDirty(gameObject);
         }
 
         private static Material ResolveSurfaceMaterial(RoadSegment segment, RoadNetwork network)

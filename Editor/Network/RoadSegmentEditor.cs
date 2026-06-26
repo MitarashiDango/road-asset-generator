@@ -27,18 +27,37 @@ namespace MitarashiDango.RoadAssetGenerator
                 "overrideSurfaceSamplingSettings",
                 "maxSurfaceSampleLengthMeters",
                 "maxSurfaceSampleAngleDegrees",
+                "overrideGeneratedSurfaceLayer",
+                "generatedSurfaceLayer",
+                "overrideGeneratedMarkingLayer",
+                "generatedMarkingLayer",
                 "surfacesRoot",
                 "markingsRoot",
                 "generatedSurfaceObjects",
                 "generatedMarkingObjects");
             DrawSurfaceStyleUi();
             DrawSurfaceSamplingUi();
-            var changed = EditorGUI.EndChangeCheck();
+            var generationChanged = EditorGUI.EndChangeCheck();
+
+            EditorGUI.BeginChangeCheck();
+            DrawGeneratedLayerUi();
+            var layerChanged = EditorGUI.EndChangeCheck();
+
             var applied = serializedObject.ApplyModifiedProperties();
-            if (changed && applied)
+            if (applied)
             {
-                RegisterTargetsGeneratedHierarchyUndo("Edit Road Segment");
-                ScheduleTargets();
+                if (generationChanged || layerChanged)
+                {
+                    RegisterTargetsGeneratedHierarchyUndo("Edit Road Segment");
+                }
+                if (layerChanged)
+                {
+                    ApplyTargetsGeneratedLayers(true);
+                }
+                if (generationChanged)
+                {
+                    ScheduleTargets();
+                }
             }
 
             EditorGUILayout.Space();
@@ -83,6 +102,25 @@ namespace MitarashiDango.RoadAssetGenerator
             }
         }
 
+        private void DrawGeneratedLayerUi()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Generated Object Layers", EditorStyles.boldLabel);
+
+            DrawLayerOverride(
+                serializedObject.FindProperty("overrideGeneratedSurfaceLayer"),
+                serializedObject.FindProperty("generatedSurfaceLayer"),
+                new GUIContent("Override Surface Layer"),
+                new GUIContent("Surface Layer"),
+                GetInheritedSurfaceLayer());
+            DrawLayerOverride(
+                serializedObject.FindProperty("overrideGeneratedMarkingLayer"),
+                serializedObject.FindProperty("generatedMarkingLayer"),
+                new GUIContent("Override Marking Layer"),
+                new GUIContent("Marking Layer"),
+                GetInheritedMarkingLayer());
+        }
+
         private void DrawSurfaceStyleApplyUi()
         {
             EditorGUILayout.LabelField("Surface Style Template", EditorStyles.boldLabel);
@@ -100,6 +138,30 @@ namespace MitarashiDango.RoadAssetGenerator
                     {
                         ApplySurfaceStyle((RoadSegment)selectedTarget, surfaceStyleToApply);
                     }
+                }
+            }
+        }
+
+        private static void DrawLayerOverride(
+            SerializedProperty overrideProperty,
+            SerializedProperty layerProperty,
+            GUIContent overrideLabel,
+            GUIContent layerLabel,
+            int inheritedLayer)
+        {
+            EditorGUILayout.PropertyField(overrideProperty, overrideLabel);
+            var enabled = overrideProperty.hasMultipleDifferentValues || overrideProperty.boolValue;
+            using (new EditorGUI.DisabledScope(!enabled))
+            {
+                var currentLayer = enabled
+                    ? RoadGeneratedLayerSettings.NormalizeLayer(layerProperty.intValue)
+                    : inheritedLayer;
+                EditorGUI.showMixedValue = enabled && layerProperty.hasMultipleDifferentValues;
+                var value = EditorGUILayout.LayerField(layerLabel, currentLayer);
+                EditorGUI.showMixedValue = false;
+                if (enabled && value != layerProperty.intValue)
+                {
+                    layerProperty.intValue = value;
                 }
             }
         }
@@ -459,12 +521,42 @@ namespace MitarashiDango.RoadAssetGenerator
             }
         }
 
+        private void ApplyTargetsGeneratedLayers(bool registerUndo)
+        {
+            foreach (var selectedTarget in targets)
+            {
+                RoadSegmentSurfaceGenerator.ApplyGeneratedLayers((RoadSegment)selectedTarget, registerUndo);
+            }
+        }
+
         private void RegisterTargetsGeneratedHierarchyUndo(string undoName)
         {
             foreach (var selectedTarget in targets)
             {
                 RoadSegmentSurfaceGenerator.RegisterGeneratedHierarchyUndo((RoadSegment)selectedTarget, undoName);
             }
+        }
+
+        private int GetInheritedSurfaceLayer()
+        {
+            if (targets.Length != 1)
+            {
+                return RoadGeneratedLayerSettings.DefaultLayer;
+            }
+
+            var segment = target as RoadSegment;
+            return RoadGeneratedLayerSettings.ResolveSurfaceLayer(null, segment != null ? segment.Network : null);
+        }
+
+        private int GetInheritedMarkingLayer()
+        {
+            if (targets.Length != 1)
+            {
+                return RoadGeneratedLayerSettings.DefaultLayer;
+            }
+
+            var segment = target as RoadSegment;
+            return RoadGeneratedLayerSettings.ResolveMarkingLayer(null, segment != null ? segment.Network : null);
         }
     }
 }

@@ -20,6 +20,9 @@ RoadSegment のプロファイルはテンプレートからコピーされま�
 - 二重線は 2 本のストロークと `strokeSpacingMeters` から生成します。`strokeSpacingMeters` は、2 本の線の内側エッジ間の隙間として扱います。
 - 区画線マテリアルは、Network の `markingMaterial` が指定されていれば複製して使い、ストロークの色を適用します。未指定の場合は、現在の Built-in / URP に合わせて、深度バイアス付きのパッケージ標準シェーダを優先します。見つからない場合だけ、各パイプラインの標準シェーダへフォールバックします。
 - 区画線マテリアルの Render Queue は Geometry より後ろに設定されます。パッケージ標準シェーダでは、レンダーパイプライン別の unlit shader で depth bias も使い、路面と重なる区画線が遠距離で路面側に隠れにくくしています。VR の Single Pass Instanced / Multiview に対応しやすいよう、stereo instancing 用の定型 macro も入れています。区画線の頂点は、RoadNetwork Inspector の `Marking Surface Offset Meters` で指定した距離だけ、路面から道路フレームの法線方向へ浮かせます。
+- 生成 GameObject の Unity Layer は、RoadNetwork Inspector の `Default Surface Layer` / `Default Marking Layer` を既定値として使います。
+  RoadSegment Inspector の `Override Surface Layer` / `Override Marking Layer` を使うと、路面と区画線を個別に Segment 値へ切り替えられます。
+  Layer 変更は既存の `Surfaces` / `Markings` 配下にも反映され、再生成後も同じ実効値が使われます。
 - 区画線の生成オブジェクトには Collider を追加しません。MeshRenderer は影を落とさず、影も受けない設定で生成します。
 
 ## API と拡張ポイント

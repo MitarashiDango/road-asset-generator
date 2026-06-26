@@ -141,6 +141,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 if (knownHash != currentHash)
                 {
                     KnownSegmentStateHashes[segmentId] = currentHash;
+                    RoadSegmentSurfaceGenerator.ApplyGeneratedLayers(segment, false);
                     if (NeedsGeneratedSurfaceSync(segment))
                     {
                         Schedule(segment);
@@ -174,6 +175,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 AddNetworkHash(segment.Network, ref hash);
                 AddSurfaceStyleHash(segment, segment.Network, ref hash);
                 AddSurfaceSamplingHash(segment, segment.Network, ref hash);
+                AddGeneratedLayerHash(segment, segment.Network, ref hash);
                 AddControlPointHash(segment.controlPoints, ref hash);
                 AddProfileKeyHash(segment.profileKeys, ref hash);
                 return hash;
@@ -226,6 +228,12 @@ namespace MitarashiDango.RoadAssetGenerator
 
             AddFloatHash(network != null ? network.maxSurfaceSampleLengthMeters : 1f, ref hash);
             AddFloatHash(network != null ? network.maxSurfaceSampleAngleDegrees : 4f, ref hash);
+        }
+
+        private static void AddGeneratedLayerHash(RoadSegment segment, RoadNetwork network, ref int hash)
+        {
+            hash = hash * 31 + RoadGeneratedLayerSettings.ResolveSurfaceLayer(segment, network);
+            hash = hash * 31 + RoadGeneratedLayerSettings.ResolveMarkingLayer(segment, network);
         }
 
         private static void AddControlPointHash(SplinePoint[] points, ref int hash)
