@@ -86,6 +86,308 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
         }
 
         [Test]
+        public void SegmentSurfaceStyleTextureLengthTakesPriorityOverNetworkFallback()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Style_Uv_Test");
+            var segmentObject = new GameObject("RoadSegment_Surface_Style_Uv_Test");
+            var meshes = new List<RoadSurfaceMeshData>();
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.textureLengthMeters = 20f;
+                network.meshSegmentLengthMeters = 100f;
+                network.maxSurfaceSampleLengthMeters = 5f;
+
+                segmentObject.transform.SetParent(networkObject.transform, false);
+                var segment = segmentObject.AddComponent<RoadSegment>();
+                segment.useSurfaceStyle = true;
+                segment.surfaceStyle = new RoadSurfaceStyle
+                {
+                    textureLengthMeters = 5f,
+                };
+                segment.controlPoints = new[]
+                {
+                    new SplinePoint(new Vector3(0f, 0f, 0f)),
+                    new SplinePoint(new Vector3(0f, 0f, 20f)),
+                };
+                segment.profileKeys = new[]
+                {
+                    new RoadProfileKey { profile = RoadProfile.CreateDefaultTwoLane() },
+                };
+
+                meshes = RoadSurfaceMeshBuilder.Build(segment, network);
+
+                Assert.That(meshes, Has.Count.EqualTo(1));
+                var uvs = meshes[0].mesh.uv;
+                Assert.That(uvs[uvs.Length - 1].y, Is.EqualTo(4f).Within(0.001f));
+            }
+            finally
+            {
+                DestroyMeshes(meshes);
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void NetworkTextureLengthIsFallbackWhenSegmentSurfaceStyleIsDisabled()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Style_Fallback_Uv_Test");
+            var segmentObject = new GameObject("RoadSegment_Surface_Style_Fallback_Uv_Test");
+            var meshes = new List<RoadSurfaceMeshData>();
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.textureLengthMeters = 5f;
+                network.meshSegmentLengthMeters = 100f;
+                network.maxSurfaceSampleLengthMeters = 5f;
+
+                segmentObject.transform.SetParent(networkObject.transform, false);
+                var segment = segmentObject.AddComponent<RoadSegment>();
+                Assert.That(segment.surfaceStyle, Is.Not.Null);
+                Assert.That(segment.useSurfaceStyle, Is.False);
+                segment.controlPoints = new[]
+                {
+                    new SplinePoint(new Vector3(0f, 0f, 0f)),
+                    new SplinePoint(new Vector3(0f, 0f, 20f)),
+                };
+                segment.profileKeys = new[]
+                {
+                    new RoadProfileKey { profile = RoadProfile.CreateDefaultTwoLane() },
+                };
+
+                meshes = RoadSurfaceMeshBuilder.Build(segment, network);
+
+                Assert.That(meshes, Has.Count.EqualTo(1));
+                var uvs = meshes[0].mesh.uv;
+                Assert.That(uvs[uvs.Length - 1].y, Is.EqualTo(4f).Within(0.001f));
+            }
+            finally
+            {
+                DestroyMeshes(meshes);
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void GeneratedSurfaceUsesSegmentStyleMaterialBeforeNetworkFallback()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Style_Material_Test");
+            Material fallbackMaterial = null;
+            Material segmentMaterial = null;
+
+            try
+            {
+                fallbackMaterial = CreateTestMaterial("Network Fallback Material");
+                segmentMaterial = CreateTestMaterial("Segment Surface Style Material");
+
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.surfaceMaterial = fallbackMaterial;
+                var segment = CreateSegment(network, "RoadSegment_Surface_Style_Material_Test", 0f);
+                segment.useSurfaceStyle = true;
+                segment.surfaceStyle = new RoadSurfaceStyle
+                {
+                    material = segmentMaterial,
+                    textureLengthMeters = 10f,
+                };
+
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+                Assert.That(GetSurfaceRenderer(segment).sharedMaterial, Is.SameAs(segmentMaterial));
+
+                segment.surfaceStyle.material = null;
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+                Assert.That(GetSurfaceRenderer(segment).sharedMaterial, Is.SameAs(fallbackMaterial));
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+                Object.DestroyImmediate(fallbackMaterial);
+                Object.DestroyImmediate(segmentMaterial);
+            }
+        }
+
+        [Test]
+        public void RoadSurfaceStyleAssetCreatesIndependentCopy()
+        {
+            var asset = ScriptableObject.CreateInstance<RoadSurfaceStyleAsset>();
+            Material material = null;
+
+            try
+            {
+                material = CreateTestMaterial("Surface Style Asset Material");
+                asset.style = new RoadSurfaceStyle
+                {
+                    styleName = "Mountain",
+                    pavementName = "Coarse Asphalt",
+                    material = material,
+                    textureLengthMeters = 7f,
+                };
+
+                var copy = asset.CreateStyleCopy();
+                asset.style.styleName = "Changed";
+                asset.style.textureLengthMeters = 3f;
+
+                Assert.That(copy, Is.Not.SameAs(asset.style));
+                Assert.That(copy.styleName, Is.EqualTo("Mountain"));
+                Assert.That(copy.pavementName, Is.EqualTo("Coarse Asphalt"));
+                Assert.That(copy.material, Is.SameAs(material));
+                Assert.That(copy.textureLengthMeters, Is.EqualTo(7f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(asset);
+                Object.DestroyImmediate(material);
+            }
+        }
+
+        [Test]
+        public void RoadNetworkCanCopyFallbackSurfaceStyleForNewSegments()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Style_Defaults_Test");
+            Material material = null;
+
+            try
+            {
+                material = CreateTestMaterial("Network Default Surface Material");
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.surfaceMaterial = material;
+                network.textureLengthMeters = 12f;
+
+                var style = network.CreateDefaultSurfaceStyleCopy();
+
+                Assert.That(style.material, Is.SameAs(material));
+                Assert.That(style.textureLengthMeters, Is.EqualTo(12f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+                Object.DestroyImmediate(material);
+            }
+        }
+
+        [Test]
+        public void RoadNetworkDefaultSurfaceStyleTemplateCreatesIndependentCopyForNewSegments()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Style_Template_Test");
+            var styleAsset = ScriptableObject.CreateInstance<RoadSurfaceStyleAsset>();
+            Material material = null;
+
+            try
+            {
+                material = CreateTestMaterial("Default Surface Style Template Material");
+                styleAsset.style = new RoadSurfaceStyle
+                {
+                    styleName = "Coastal",
+                    pavementName = "Weathered Asphalt",
+                    material = material,
+                    textureLengthMeters = 8f,
+                };
+
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.defaultSurfaceStyleTemplate = styleAsset;
+
+                var copy = network.CreateDefaultSurfaceStyleCopy();
+                styleAsset.style.styleName = "Changed";
+                styleAsset.style.pavementName = "Changed Pavement";
+                styleAsset.style.textureLengthMeters = 4f;
+
+                Assert.That(copy, Is.Not.SameAs(styleAsset.style));
+                Assert.That(copy.styleName, Is.EqualTo("Coastal"));
+                Assert.That(copy.pavementName, Is.EqualTo("Weathered Asphalt"));
+                Assert.That(copy.material, Is.SameAs(material));
+                Assert.That(copy.textureLengthMeters, Is.EqualTo(8f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+                Object.DestroyImmediate(styleAsset);
+                Object.DestroyImmediate(material);
+            }
+        }
+
+        [Test]
+        public void RoadNetworkDefaultProfileTemplateCreatesIndependentCopyForNewSegments()
+        {
+            var networkObject = new GameObject("RoadNetwork_Profile_Template_Test");
+            var profileAsset = ScriptableObject.CreateInstance<RoadProfileTemplateAsset>();
+
+            try
+            {
+                profileAsset.profile = RoadProfile.CreateDefaultTwoLane();
+                profileAsset.profile.lanes[0].label = "Template Lane";
+                profileAsset.profile.lanes[0].widthMeters = 4.25f;
+
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.defaultProfileTemplate = profileAsset;
+
+                var copy = network.CreateDefaultProfileCopy();
+                profileAsset.profile.lanes[0].label = "Changed Lane";
+                profileAsset.profile.lanes[0].widthMeters = 2f;
+
+                Assert.That(copy, Is.Not.SameAs(profileAsset.profile));
+                Assert.That(copy.lanes[0].label, Is.EqualTo("Template Lane"));
+                Assert.That(copy.lanes[0].widthMeters, Is.EqualTo(4.25f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+                Object.DestroyImmediate(profileAsset);
+            }
+        }
+
+        [Test]
+        public void RoadNetworkAppliesDefaultTemplatesToNewSegmentAsCopies()
+        {
+            var networkObject = new GameObject("RoadNetwork_New_Segment_Defaults_Test");
+            var segmentObject = new GameObject("RoadSegment_New_Segment_Defaults_Test");
+            var styleAsset = ScriptableObject.CreateInstance<RoadSurfaceStyleAsset>();
+            var profileAsset = ScriptableObject.CreateInstance<RoadProfileTemplateAsset>();
+            Material material = null;
+
+            try
+            {
+                material = CreateTestMaterial("New Segment Default Material");
+                styleAsset.style = new RoadSurfaceStyle
+                {
+                    styleName = "Urban",
+                    pavementName = "Dense Asphalt",
+                    material = material,
+                    textureLengthMeters = 6f,
+                };
+                profileAsset.profile = RoadProfile.CreateDefaultTwoLane();
+                profileAsset.profile.lanes[0].label = "Default Profile Lane";
+                profileAsset.profile.lanes[0].widthMeters = 4f;
+
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.defaultSurfaceStyleTemplate = styleAsset;
+                network.defaultProfileTemplate = profileAsset;
+                segmentObject.transform.SetParent(networkObject.transform, false);
+                var segment = segmentObject.AddComponent<RoadSegment>();
+
+                network.ApplyNewSegmentDefaults(segment);
+                styleAsset.style.styleName = "Changed";
+                profileAsset.profile.lanes[0].widthMeters = 2f;
+
+                Assert.That(segment.useSurfaceStyle, Is.True);
+                Assert.That(segment.surfaceStyle.styleName, Is.EqualTo("Urban"));
+                Assert.That(segment.surfaceStyle.pavementName, Is.EqualTo("Dense Asphalt"));
+                Assert.That(segment.surfaceStyle.material, Is.SameAs(material));
+                Assert.That(segment.surfaceStyle.textureLengthMeters, Is.EqualTo(6f).Within(0.001f));
+                Assert.That(segment.profileKeys, Has.Length.EqualTo(1));
+                Assert.That(segment.profileKeys[0].profile.lanes[0].label, Is.EqualTo("Default Profile Lane"));
+                Assert.That(segment.profileKeys[0].profile.lanes[0].widthMeters, Is.EqualTo(4f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+                Object.DestroyImmediate(styleAsset);
+                Object.DestroyImmediate(profileAsset);
+                Object.DestroyImmediate(material);
+            }
+        }
+
+        [Test]
         public void LongSurfaceSplitsAtConfiguredLength()
         {
             var networkObject = new GameObject("RoadNetwork_Split_Test");
@@ -455,6 +757,25 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             var meshFilter = segment.generatedSurfaceObjects[0].GetComponent<MeshFilter>();
             Assert.That(meshFilter, Is.Not.Null);
             return meshFilter.sharedMesh;
+        }
+
+        private static MeshRenderer GetSurfaceRenderer(RoadSegment segment)
+        {
+            Assert.That(segment.generatedSurfaceObjects, Is.Not.Null);
+            Assert.That(segment.generatedSurfaceObjects, Has.Count.GreaterThan(0));
+            var renderer = segment.generatedSurfaceObjects[0].GetComponent<MeshRenderer>();
+            Assert.That(renderer, Is.Not.Null);
+            return renderer;
+        }
+
+        private static Material CreateTestMaterial(string name)
+        {
+            var shader = Shader.Find("Standard") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Hidden/InternalErrorShader");
+            Assert.That(shader, Is.Not.Null);
+            return new Material(shader)
+            {
+                name = name,
+            };
         }
     }
 }

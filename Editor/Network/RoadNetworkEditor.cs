@@ -15,7 +15,7 @@ namespace MitarashiDango.RoadAssetGenerator
             serializedObject.Update();
 
             EditorGUI.BeginChangeCheck();
-            DrawPropertiesExcluding(serializedObject, "m_Script");
+            DrawNetworkProperties();
             var changed = EditorGUI.EndChangeCheck();
             var applied = serializedObject.ApplyModifiedProperties();
             if (changed && applied)
@@ -26,6 +26,36 @@ namespace MitarashiDango.RoadAssetGenerator
             EditorGUILayout.Space();
             DrawGenerationButtons();
             DrawValidationButton();
+        }
+
+        private void DrawNetworkProperties()
+        {
+            EditorGUILayout.LabelField("New Segment Defaults", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("defaultSurfaceStyleTemplate"),
+                new GUIContent("Default Surface Style"));
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("defaultProfileTemplate"),
+                new GUIContent("Default Profile Template"));
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Fallbacks", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("textureLengthMeters"),
+                new GUIContent("Fallback Texture Length Meters"));
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("surfaceMaterial"),
+                new GUIContent("Fallback Surface Material"));
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("markingMaterial"),
+                new GUIContent("Fallback Marking Material"));
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Generation", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("meshSegmentLengthMeters"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("markingVertexOffsetMeters"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("maxSurfaceSampleLengthMeters"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("maxSurfaceSampleAngleDegrees"));
         }
 
         private void DrawGenerationButtons()

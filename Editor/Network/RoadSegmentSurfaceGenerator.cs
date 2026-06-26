@@ -42,7 +42,7 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             var root = CreateRoot(segment, registerUndo);
-            var material = ResolveSurfaceMaterial(network);
+            var material = ResolveSurfaceMaterial(segment, network);
             segment.generatedSurfaceObjects = new List<GameObject>(meshes.Count);
 
             for (var i = 0; i < meshes.Count; i++)
@@ -193,11 +193,12 @@ namespace MitarashiDango.RoadAssetGenerator
             return root;
         }
 
-        private static Material ResolveSurfaceMaterial(RoadNetwork network)
+        private static Material ResolveSurfaceMaterial(RoadSegment segment, RoadNetwork network)
         {
-            if (network != null && network.surfaceMaterial != null)
+            var material = RoadSurfaceStyle.ResolveMaterial(segment, network);
+            if (material != null)
             {
-                return network.surfaceMaterial;
+                return material;
             }
 
             return AssetDatabase.GetBuiltinExtraResource<Material>("Default-Material.mat");

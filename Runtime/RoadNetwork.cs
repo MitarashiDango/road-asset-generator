@@ -18,6 +18,9 @@ namespace MitarashiDango.RoadAssetGenerator
         public Material surfaceMaterial;
         public Material markingMaterial;
 
+        public RoadSurfaceStyleAsset defaultSurfaceStyleTemplate;
+        public RoadProfileTemplateAsset defaultProfileTemplate;
+
         /// <summary>このネットワーク直下に属する道路区間を子階層から収集する。</summary>
         public void CollectSegments(List<RoadSegment> results)
         {
@@ -27,6 +30,35 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             GetComponentsInChildren(true, results);
+        }
+
+        public RoadSurfaceStyle CreateDefaultSurfaceStyleCopy()
+        {
+            return defaultSurfaceStyleTemplate != null
+                ? defaultSurfaceStyleTemplate.CreateStyleCopy()
+                : RoadSurfaceStyle.FromNetworkDefaults(this);
+        }
+
+        public RoadProfile CreateDefaultProfileCopy()
+        {
+            return defaultProfileTemplate != null && defaultProfileTemplate.profile != null
+                ? defaultProfileTemplate.profile.Clone()
+                : RoadProfile.CreateDefaultTwoLane();
+        }
+
+        public void ApplyNewSegmentDefaults(RoadSegment segment)
+        {
+            if (segment == null)
+            {
+                return;
+            }
+
+            segment.useSurfaceStyle = true;
+            segment.surfaceStyle = CreateDefaultSurfaceStyleCopy();
+            segment.profileKeys = new[]
+            {
+                new RoadProfileKey { profile = CreateDefaultProfileCopy() },
+            };
         }
     }
 }

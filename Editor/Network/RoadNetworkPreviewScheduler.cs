@@ -172,6 +172,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 var hash = 17;
                 AddTransformHash(segment.transform, ref hash);
                 AddNetworkHash(segment.Network, ref hash);
+                AddSurfaceStyleHash(segment, segment.Network, ref hash);
                 AddSurfaceSamplingHash(segment, segment.Network, ref hash);
                 AddControlPointHash(segment.controlPoints, ref hash);
                 AddProfileKeyHash(segment.profileKeys, ref hash);
@@ -194,10 +195,17 @@ namespace MitarashiDango.RoadAssetGenerator
                 return;
             }
 
-            AddFloatHash(network.textureLengthMeters, ref hash);
             AddFloatHash(network.meshSegmentLengthMeters, ref hash);
             AddFloatHash(network.markingVertexOffsetMeters, ref hash);
-            hash = hash * 31 + (network.surfaceMaterial != null ? network.surfaceMaterial.GetInstanceID() : 0);
+        }
+
+        private static void AddSurfaceStyleHash(RoadSegment segment, RoadNetwork network, ref int hash)
+        {
+            var usesSegmentStyle = RoadSurfaceStyle.HasSegmentStyle(segment);
+            hash = hash * 31 + (usesSegmentStyle ? 1 : 0);
+            AddFloatHash(RoadSurfaceStyle.ResolveTextureLengthMeters(segment, network), ref hash);
+            var material = RoadSurfaceStyle.ResolveMaterial(segment, network);
+            hash = hash * 31 + (material != null ? material.GetInstanceID() : 0);
         }
 
         private static void AddSurfaceSamplingHash(RoadSegment segment, RoadNetwork network, ref int hash)

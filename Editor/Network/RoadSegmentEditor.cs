@@ -11,6 +11,7 @@ namespace MitarashiDango.RoadAssetGenerator
     public class RoadSegmentEditor : Editor
     {
         private RoadProfileTemplateAsset templateToApply;
+        private RoadSurfaceStyleAsset surfaceStyleToApply;
 
         public override void OnInspectorGUI()
         {
@@ -21,6 +22,8 @@ namespace MitarashiDango.RoadAssetGenerator
                 serializedObject,
                 "m_Script",
                 "roadNetwork",
+                "useSurfaceStyle",
+                "surfaceStyle",
                 "overrideSurfaceSamplingSettings",
                 "maxSurfaceSampleLengthMeters",
                 "maxSurfaceSampleAngleDegrees",
@@ -28,6 +31,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 "markingsRoot",
                 "generatedSurfaceObjects",
                 "generatedMarkingObjects");
+            DrawSurfaceStyleUi();
             DrawSurfaceSamplingUi();
             var changed = EditorGUI.EndChangeCheck();
             var applied = serializedObject.ApplyModifiedProperties();
@@ -38,10 +42,27 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             EditorGUILayout.Space();
+            DrawSurfaceStyleApplyUi();
             DrawTemplateApplyUi();
             DrawControlPointUtilityButtons();
             DrawGenerationButtons();
             DrawGeneratedObjectInfo();
+        }
+
+        private void DrawSurfaceStyleUi()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Surface Style", EditorStyles.boldLabel);
+
+            var useProperty = serializedObject.FindProperty("useSurfaceStyle");
+            var styleProperty = serializedObject.FindProperty("surfaceStyle");
+
+            EditorGUILayout.PropertyField(useProperty, new GUIContent("Use Segment Surface Style"));
+            var enabled = useProperty.hasMultipleDifferentValues || useProperty.boolValue;
+            using (new EditorGUI.DisabledScope(!enabled))
+            {
+                EditorGUILayout.PropertyField(styleProperty, true);
+            }
         }
 
         private void DrawSurfaceSamplingUi()
@@ -59,6 +80,27 @@ namespace MitarashiDango.RoadAssetGenerator
             {
                 EditorGUILayout.PropertyField(lengthProperty, new GUIContent("Max Surface Sample Length Meters"));
                 EditorGUILayout.PropertyField(angleProperty, new GUIContent("Max Surface Sample Angle Degrees"));
+            }
+        }
+
+        private void DrawSurfaceStyleApplyUi()
+        {
+            EditorGUILayout.LabelField("Surface Style Template", EditorStyles.boldLabel);
+            surfaceStyleToApply = (RoadSurfaceStyleAsset)EditorGUILayout.ObjectField(
+                "Template",
+                surfaceStyleToApply,
+                typeof(RoadSurfaceStyleAsset),
+                false);
+
+            using (new EditorGUI.DisabledScope(surfaceStyleToApply == null))
+            {
+                if (GUILayout.Button("Apply To Surface Style"))
+                {
+                    foreach (var selectedTarget in targets)
+                    {
+                        ApplySurfaceStyle((RoadSegment)selectedTarget, surfaceStyleToApply);
+                    }
+                }
             }
         }
 
@@ -270,6 +312,21 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             return planePoint + segment.transform.forward * 5f;
+        }
+
+        private static void ApplySurfaceStyle(RoadSegment segment, RoadSurfaceStyleAsset template)
+        {
+            if (segment == null || template == null)
+            {
+                return;
+            }
+
+            RoadSegmentSurfaceGenerator.RegisterGeneratedHierarchyUndo(segment, "Apply Road Surface Style");
+            Undo.RecordObject(segment, "Apply Road Surface Style");
+            segment.useSurfaceStyle = true;
+            segment.surfaceStyle = template.CreateStyleCopy();
+            EditorUtility.SetDirty(segment);
+            RoadNetworkPreviewScheduler.Schedule(segment, true);
         }
 
         private static void ApplyTemplate(RoadSegment segment, RoadProfileTemplateAsset template)

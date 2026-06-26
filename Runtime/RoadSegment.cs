@@ -19,6 +19,9 @@ namespace MitarashiDango.RoadAssetGenerator
             new RoadProfileKey(),
         };
 
+        public bool useSurfaceStyle;
+        public RoadSurfaceStyle surfaceStyle = RoadSurfaceStyle.CreateDefault();
+
         public RoadSegmentConnection startConnection = new RoadSegmentConnection();
         public RoadSegmentConnection endConnection = new RoadSegmentConnection();
 

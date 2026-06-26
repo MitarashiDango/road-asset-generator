@@ -67,6 +67,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
             var segment = segmentObject.AddComponent<RoadSegment>();
             segment.RefreshNetworkCache();
+            network.ApplyNewSegmentDefaults(segment);
             Undo.RegisterCreatedObjectUndo(segmentObject, "Create Road Segment");
             EditorUtility.SetDirty(segment);
             return segment;

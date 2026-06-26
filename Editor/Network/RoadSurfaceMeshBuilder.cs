@@ -311,7 +311,7 @@ namespace MitarashiDango.RoadAssetGenerator
                     fallbackRight = segment.transform.InverseTransformDirection(Vector3.right);
                 }
 
-                var textureLengthMeters = network != null ? network.textureLengthMeters : 10f;
+                var textureLengthMeters = RoadSurfaceStyle.ResolveTextureLengthMeters(segment, network);
                 var meshSegmentLengthMeters = network != null ? network.meshSegmentLengthMeters : 100f;
                 var maxSampleLengthMeters = network != null ? network.maxSurfaceSampleLengthMeters : 1f;
                 var maxSampleAngleDegrees = network != null ? network.maxSurfaceSampleAngleDegrees : 4f;
