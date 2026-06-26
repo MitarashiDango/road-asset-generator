@@ -100,6 +100,36 @@ namespace MitarashiDango.RoadAssetGenerator
             profile.boundaryLines.Add(RoadBoundaryLine.Single("Right Edge", RoadLineStroke.White(RoadLineKind.Solid)));
             return profile;
         }
+
+        public static RoadProfile CreateTwoLaneCenterDashed()
+        {
+            var profile = CreateDefaultTwoLane();
+            profile.boundaryLines[1] = RoadBoundaryLine.Single("Center Dashed", RoadLineStroke.Yellow(RoadLineKind.Dashed));
+            return profile;
+        }
+
+        public static RoadProfile CreateFourLane()
+        {
+            var profile = new RoadProfile
+            {
+                leftShoulderWidthMeters = 0.75f,
+                rightShoulderWidthMeters = 0.75f,
+            };
+            profile.lanes.Add(new RoadLane { label = "Left Oncoming", widthMeters = 3f, direction = RoadLaneDirection.Backward });
+            profile.lanes.Add(new RoadLane { label = "Right Oncoming", widthMeters = 3f, direction = RoadLaneDirection.Backward });
+            profile.lanes.Add(new RoadLane { label = "Left Forward", widthMeters = 3f, direction = RoadLaneDirection.Forward });
+            profile.lanes.Add(new RoadLane { label = "Right Forward", widthMeters = 3f, direction = RoadLaneDirection.Forward });
+            profile.boundaryLines.Add(RoadBoundaryLine.Single("Left Edge", RoadLineStroke.White(RoadLineKind.Solid)));
+            profile.boundaryLines.Add(RoadBoundaryLine.Single("Oncoming Lane Divider", RoadLineStroke.White(RoadLineKind.Dashed)));
+            profile.boundaryLines.Add(RoadBoundaryLine.Double(
+                "Center Double Solid",
+                RoadLineStroke.Yellow(RoadLineKind.Solid),
+                RoadLineStroke.Yellow(RoadLineKind.Solid),
+                0.15f));
+            profile.boundaryLines.Add(RoadBoundaryLine.Single("Forward Lane Divider", RoadLineStroke.White(RoadLineKind.Dashed)));
+            profile.boundaryLines.Add(RoadBoundaryLine.Single("Right Edge", RoadLineStroke.White(RoadLineKind.Solid)));
+            return profile;
+        }
     }
 
     /// <summary>1 つの車線定義。</summary>

@@ -53,20 +53,24 @@ namespace MitarashiDango.RoadAssetGenerator
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Generation", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(serializedObject.FindProperty("meshSegmentLengthMeters"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("markingVertexOffsetMeters"));
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("markingVertexOffsetMeters"),
+                new GUIContent(
+                    "Marking Surface Offset Meters",
+                    "Distance to lift generated markings from the road surface along the road normal."));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("maxSurfaceSampleLengthMeters"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("maxSurfaceSampleAngleDegrees"));
         }
 
         private void DrawGenerationButtons()
         {
-            EditorGUILayout.LabelField("Surface Generation", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Road Generation", EditorStyles.boldLabel);
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Regenerate All Surfaces"))
+                if (GUILayout.Button("Regenerate All Roads"))
                 {
                     var group = Undo.GetCurrentGroup();
-                    Undo.SetCurrentGroupName("Regenerate Road Network Surfaces");
+                    Undo.SetCurrentGroupName("Regenerate Road Network Geometry");
                     foreach (var selectedTarget in targets)
                     {
                         RegenerateAll((RoadNetwork)selectedTarget);
@@ -74,10 +78,10 @@ namespace MitarashiDango.RoadAssetGenerator
                     Undo.CollapseUndoOperations(group);
                 }
 
-                if (GUILayout.Button("Clear All Surfaces"))
+                if (GUILayout.Button("Clear All Roads"))
                 {
                     var group = Undo.GetCurrentGroup();
-                    Undo.SetCurrentGroupName("Clear Road Network Surfaces");
+                    Undo.SetCurrentGroupName("Clear Road Network Geometry");
                     foreach (var selectedTarget in targets)
                     {
                         ClearAll((RoadNetwork)selectedTarget);

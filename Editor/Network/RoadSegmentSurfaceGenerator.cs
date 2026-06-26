@@ -2,17 +2,22 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
 
 namespace MitarashiDango.RoadAssetGenerator
 {
-    /// <summary>RoadSegment 配下の路面生成物を作成・破棄する。</summary>
+    /// <summary>RoadSegment 配下の路面・区画線生成物を作成・破棄する。</summary>
     public static class RoadSegmentSurfaceGenerator
     {
         private const string SurfacesRootName = "Surfaces";
+        private const string MarkingsRootName = "Markings";
         private const string SurfaceObjectNamePrefix = "Surface";
-        private const string UndoRegenerateName = "Regenerate Road Surfaces";
-        private const string UndoClearName = "Clear Road Surfaces";
+        private const string MarkingObjectNamePrefix = "Marking";
+        private const string UndoRegenerateName = "Regenerate Road Geometry";
+        private const string UndoClearName = "Clear Road Geometry";
+        private const string BuiltInDepthBiasedMarkingShaderName = "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedBuiltIn";
+        private const string UrpDepthBiasedMarkingShaderName = "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedURP";
         private static readonly Dictionary<int, int> GeneratedHierarchyUndoGroups = new Dictionary<int, int>();
 
         public static void Regenerate(RoadSegment segment, bool registerUndo)
@@ -28,10 +33,11 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             var network = segment.Network;
-            var meshes = RoadSurfaceMeshBuilder.Build(segment, network);
+            var surfaceMeshes = RoadSurfaceMeshBuilder.Build(segment, network);
+            var markingMeshes = RoadMarkingMeshBuilder.Build(segment, network);
             Clear(segment, registerUndo && clearExistingWithUndo);
 
-            if (meshes.Count == 0)
+            if (surfaceMeshes.Count == 0 && markingMeshes.Count == 0)
             {
                 return;
             }
@@ -41,35 +47,8 @@ namespace MitarashiDango.RoadAssetGenerator
                 Undo.RecordObject(segment, UndoRegenerateName);
             }
 
-            var root = CreateRoot(segment, registerUndo);
-            var material = ResolveSurfaceMaterial(segment, network);
-            segment.generatedSurfaceObjects = new List<GameObject>(meshes.Count);
-
-            for (var i = 0; i < meshes.Count; i++)
-            {
-                var meshData = meshes[i];
-                var surfaceObject = new GameObject($"{SurfaceObjectNamePrefix}_{i:000}");
-                var meshFilter = surfaceObject.AddComponent<MeshFilter>();
-                var meshRenderer = surfaceObject.AddComponent<MeshRenderer>();
-                meshFilter.sharedMesh = meshData.mesh;
-                meshRenderer.sharedMaterial = material;
-                if (registerUndo)
-                {
-                    Undo.RegisterCreatedObjectUndo(meshData.mesh, UndoRegenerateName);
-                    Undo.RegisterCreatedObjectUndo(surfaceObject, UndoRegenerateName);
-                    Undo.SetTransformParent(surfaceObject.transform, root.transform, UndoRegenerateName);
-                }
-                else
-                {
-                    surfaceObject.transform.SetParent(root.transform, false);
-                }
-
-                surfaceObject.transform.localPosition = Vector3.zero;
-                surfaceObject.transform.localRotation = Quaternion.identity;
-                surfaceObject.transform.localScale = Vector3.one;
-                segment.generatedSurfaceObjects.Add(surfaceObject);
-            }
-
+            CreateSurfaceObjects(segment, network, surfaceMeshes, registerUndo);
+            CreateMarkingObjects(segment, network, markingMeshes, registerUndo);
             EditorUtility.SetDirty(segment);
         }
 
@@ -85,26 +64,23 @@ namespace MitarashiDango.RoadAssetGenerator
                 Undo.RecordObject(segment, UndoClearName);
             }
 
-            var root = segment.surfacesRoot != null
-                ? segment.surfacesRoot
-                : FindDirectChild(segment.transform, SurfacesRootName);
-
-            if (root != null)
-            {
-                DestroyGeneratedObject(root, registerUndo);
-            }
-            else if (segment.generatedSurfaceObjects != null)
-            {
-                foreach (var generatedObject in segment.generatedSurfaceObjects)
-                {
-                    if (generatedObject != null)
-                    {
-                        DestroyGeneratedObject(generatedObject, registerUndo);
-                    }
-                }
-            }
+            ClearRoot(
+                segment,
+                SurfacesRootName,
+                segment.surfacesRoot,
+                segment.generatedSurfaceObjects,
+                registerUndo,
+                false);
+            ClearRoot(
+                segment,
+                MarkingsRootName,
+                segment.markingsRoot,
+                segment.generatedMarkingObjects,
+                registerUndo,
+                true);
 
             segment.surfacesRoot = null;
+            segment.markingsRoot = null;
             if (segment.generatedSurfaceObjects == null)
             {
                 segment.generatedSurfaceObjects = new List<GameObject>();
@@ -114,12 +90,32 @@ namespace MitarashiDango.RoadAssetGenerator
                 segment.generatedSurfaceObjects.Clear();
             }
 
+            if (segment.generatedMarkingObjects == null)
+            {
+                segment.generatedMarkingObjects = new List<GameObject>();
+            }
+            else
+            {
+                segment.generatedMarkingObjects.Clear();
+            }
+
             EditorUtility.SetDirty(segment);
         }
 
         public static void RegisterGeneratedHierarchyUndo(RoadSegment segment, string undoName)
         {
-            if (segment == null || segment.surfacesRoot == null)
+            if (segment == null)
+            {
+                return;
+            }
+
+            var surfacesRoot = segment.surfacesRoot != null
+                ? segment.surfacesRoot
+                : FindDirectChild(segment.transform, SurfacesRootName);
+            var markingsRoot = segment.markingsRoot != null
+                ? segment.markingsRoot
+                : FindDirectChild(segment.transform, MarkingsRootName);
+            if (surfacesRoot == null && markingsRoot == null)
             {
                 return;
             }
@@ -133,49 +129,200 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             GeneratedHierarchyUndoGroups[segmentId] = undoGroup;
-            // Keep this scoped to generated surfaces; registering segment.gameObject snapshots unrelated children.
-            Undo.RegisterFullObjectHierarchyUndo(segment.surfacesRoot, undoName);
+            if (surfacesRoot != null)
+            {
+                Undo.RegisterFullObjectHierarchyUndo(surfacesRoot, undoName);
+            }
+            if (markingsRoot != null)
+            {
+                Undo.RegisterFullObjectHierarchyUndo(markingsRoot, undoName);
+            }
         }
 
         public static bool EnsureGeneratedSurfaceReferences(RoadSegment segment)
         {
-            if (HasValidGeneratedSurfaceReferences(segment))
+            if (segment == null)
+            {
+                return false;
+            }
+
+            var surfacesOk = EnsureGeneratedReferences(
+                segment,
+                SurfacesRootName,
+                ref segment.surfacesRoot,
+                ref segment.generatedSurfaceObjects,
+                true);
+            var markingsOk = EnsureGeneratedReferences(
+                segment,
+                MarkingsRootName,
+                ref segment.markingsRoot,
+                ref segment.generatedMarkingObjects,
+                ShouldRequireMarkings(segment));
+            return surfacesOk && markingsOk;
+        }
+
+        private static void CreateSurfaceObjects(
+            RoadSegment segment,
+            RoadNetwork network,
+            IReadOnlyList<RoadSurfaceMeshData> meshes,
+            bool registerUndo)
+        {
+            if (meshes.Count == 0)
+            {
+                return;
+            }
+
+            var root = CreateRoot(segment, SurfacesRootName, registerUndo);
+            segment.surfacesRoot = root;
+            var material = ResolveSurfaceMaterial(segment, network);
+            segment.generatedSurfaceObjects = new List<GameObject>(meshes.Count);
+
+            for (var i = 0; i < meshes.Count; i++)
+            {
+                var meshData = meshes[i];
+                var surfaceObject = new GameObject($"{SurfaceObjectNamePrefix}_{i:000}");
+                var meshFilter = surfaceObject.AddComponent<MeshFilter>();
+                var meshRenderer = surfaceObject.AddComponent<MeshRenderer>();
+                meshFilter.sharedMesh = meshData.mesh;
+                meshRenderer.sharedMaterial = material;
+                RegisterGeneratedObject(surfaceObject, meshData.mesh, null, root, registerUndo);
+                segment.generatedSurfaceObjects.Add(surfaceObject);
+            }
+        }
+
+        private static void CreateMarkingObjects(
+            RoadSegment segment,
+            RoadNetwork network,
+            IReadOnlyList<RoadMarkingMeshData> meshes,
+            bool registerUndo)
+        {
+            if (meshes.Count == 0)
+            {
+                return;
+            }
+
+            var root = CreateRoot(segment, MarkingsRootName, registerUndo);
+            segment.markingsRoot = root;
+            segment.generatedMarkingObjects = new List<GameObject>(meshes.Count);
+
+            for (var i = 0; i < meshes.Count; i++)
+            {
+                var meshData = meshes[i];
+                var markingObject = new GameObject($"{MarkingObjectNamePrefix}_{i:000}");
+                var meshFilter = markingObject.AddComponent<MeshFilter>();
+                var meshRenderer = markingObject.AddComponent<MeshRenderer>();
+                var material = CreateMarkingMaterial(meshData, network);
+                meshFilter.sharedMesh = meshData.mesh;
+                meshRenderer.sharedMaterial = material;
+                meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+                meshRenderer.receiveShadows = false;
+                RegisterGeneratedObject(markingObject, meshData.mesh, material, root, registerUndo);
+                segment.generatedMarkingObjects.Add(markingObject);
+            }
+        }
+
+        private static void RegisterGeneratedObject(
+            GameObject generatedObject,
+            Mesh mesh,
+            Material material,
+            GameObject root,
+            bool registerUndo)
+        {
+            if (registerUndo)
+            {
+                if (mesh != null)
+                {
+                    Undo.RegisterCreatedObjectUndo(mesh, UndoRegenerateName);
+                }
+                if (material != null)
+                {
+                    Undo.RegisterCreatedObjectUndo(material, UndoRegenerateName);
+                }
+                Undo.RegisterCreatedObjectUndo(generatedObject, UndoRegenerateName);
+                Undo.SetTransformParent(generatedObject.transform, root.transform, UndoRegenerateName);
+            }
+            else
+            {
+                generatedObject.transform.SetParent(root.transform, false);
+            }
+
+            generatedObject.transform.localPosition = Vector3.zero;
+            generatedObject.transform.localRotation = Quaternion.identity;
+            generatedObject.transform.localScale = Vector3.one;
+        }
+
+        private static void ClearRoot(
+            RoadSegment segment,
+            string rootName,
+            GameObject serializedRoot,
+            IReadOnlyList<GameObject> generatedObjects,
+            bool registerUndo,
+            bool destroySceneMaterials)
+        {
+            var root = serializedRoot != null
+                ? serializedRoot
+                : FindDirectChild(segment.transform, rootName);
+
+            if (root != null)
+            {
+                DestroyGeneratedObject(root, registerUndo, destroySceneMaterials);
+            }
+            else if (generatedObjects != null)
+            {
+                foreach (var generatedObject in generatedObjects)
+                {
+                    if (generatedObject != null)
+                    {
+                        DestroyGeneratedObject(generatedObject, registerUndo, destroySceneMaterials);
+                    }
+                }
+            }
+        }
+
+        private static bool EnsureGeneratedReferences(
+            RoadSegment segment,
+            string rootName,
+            ref GameObject serializedRoot,
+            ref List<GameObject> generatedObjects,
+            bool requireRoot)
+        {
+            if (HasValidGeneratedReferences(serializedRoot, generatedObjects))
             {
                 return true;
             }
 
-            var root = segment != null && segment.surfacesRoot != null
-                ? segment.surfacesRoot
-                : FindDirectChild(segment != null ? segment.transform : null, SurfacesRootName);
+            var root = serializedRoot != null
+                ? serializedRoot
+                : FindDirectChild(segment.transform, rootName);
             if (root == null)
             {
-                return false;
+                return !requireRoot;
             }
 
             var filters = root.GetComponentsInChildren<MeshFilter>(true);
-            var surfaceObjects = new List<GameObject>(filters.Length);
+            var objects = new List<GameObject>(filters.Length);
             foreach (var filter in filters)
             {
                 if (filter != null && filter.sharedMesh != null)
                 {
-                    surfaceObjects.Add(filter.gameObject);
+                    objects.Add(filter.gameObject);
                 }
             }
 
-            if (surfaceObjects.Count == 0)
+            if (objects.Count == 0)
             {
-                return false;
+                return !requireRoot;
             }
 
-            segment.surfacesRoot = root;
-            segment.generatedSurfaceObjects = surfaceObjects;
+            serializedRoot = root;
+            generatedObjects = objects;
             EditorUtility.SetDirty(segment);
             return true;
         }
 
-        private static GameObject CreateRoot(RoadSegment segment, bool registerUndo)
+        private static GameObject CreateRoot(RoadSegment segment, string rootName, bool registerUndo)
         {
-            var root = new GameObject(SurfacesRootName);
+            var root = new GameObject(rootName);
             if (registerUndo)
             {
                 Undo.RegisterCreatedObjectUndo(root, UndoRegenerateName);
@@ -189,7 +336,6 @@ namespace MitarashiDango.RoadAssetGenerator
             root.transform.localPosition = Vector3.zero;
             root.transform.localRotation = Quaternion.identity;
             root.transform.localScale = Vector3.one;
-            segment.surfacesRoot = root;
             return root;
         }
 
@@ -202,6 +348,58 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             return AssetDatabase.GetBuiltinExtraResource<Material>("Default-Material.mat");
+        }
+
+        private static Material CreateMarkingMaterial(RoadMarkingMeshData meshData, RoadNetwork network)
+        {
+            var source = network != null ? network.markingMaterial : null;
+            var material = source != null
+                ? new Material(source)
+                : new Material(FindDefaultMarkingShader());
+            material.name = $"RoadMarking_{meshData.boundaryIndex:00}_{meshData.strokeIndex:00}";
+            ApplyMarkingColor(material, meshData.color);
+            var targetQueue = (int)RenderQueue.Geometry + 20;
+            if (material.renderQueue < targetQueue)
+            {
+                material.renderQueue = targetQueue;
+            }
+            return material;
+        }
+
+        private static Shader FindDefaultMarkingShader()
+        {
+            if (RoadMaterialFactory.DetectPipeline() == PipelineTarget.URP)
+            {
+                var shader = Shader.Find(UrpDepthBiasedMarkingShaderName) ??
+                    Shader.Find("Universal Render Pipeline/Unlit") ??
+                    Shader.Find("Universal Render Pipeline/Lit");
+                if (shader != null)
+                {
+                    return shader;
+                }
+            }
+
+            return Shader.Find(BuiltInDepthBiasedMarkingShaderName) ??
+                Shader.Find("Standard") ??
+                Shader.Find("Sprites/Default") ??
+                Shader.Find("Hidden/InternalErrorShader");
+        }
+
+        private static void ApplyMarkingColor(Material material, Color color)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", color);
+            }
+            if (material.HasProperty("_Color"))
+            {
+                material.SetColor("_Color", color);
+            }
         }
 
         private static GameObject FindDirectChild(Transform parent, string childName)
@@ -223,22 +421,21 @@ namespace MitarashiDango.RoadAssetGenerator
             return null;
         }
 
-        private static bool HasValidGeneratedSurfaceReferences(RoadSegment segment)
+        private static bool HasValidGeneratedReferences(GameObject root, IReadOnlyList<GameObject> generatedObjects)
         {
-            if (segment == null || segment.surfacesRoot == null || segment.generatedSurfaceObjects == null ||
-                segment.generatedSurfaceObjects.Count == 0)
+            if (root == null || generatedObjects == null || generatedObjects.Count == 0)
             {
                 return false;
             }
 
-            foreach (var surfaceObject in segment.generatedSurfaceObjects)
+            foreach (var generatedObject in generatedObjects)
             {
-                if (surfaceObject == null)
+                if (generatedObject == null)
                 {
                     return false;
                 }
 
-                var filter = surfaceObject.GetComponent<MeshFilter>();
+                var filter = generatedObject.GetComponent<MeshFilter>();
                 if (filter == null || filter.sharedMesh == null)
                 {
                     return false;
@@ -248,9 +445,39 @@ namespace MitarashiDango.RoadAssetGenerator
             return true;
         }
 
-        private static void DestroyGeneratedObject(GameObject root, bool registerUndo)
+        private static bool ShouldRequireMarkings(RoadSegment segment)
+        {
+            var profile = segment != null ? segment.GetActiveProfile() : null;
+            if (profile?.boundaryLines == null)
+            {
+                return false;
+            }
+
+            foreach (var boundaryLine in profile.boundaryLines)
+            {
+                if (boundaryLine?.strokes == null)
+                {
+                    continue;
+                }
+
+                foreach (var stroke in boundaryLine.strokes)
+                {
+                    if (stroke != null &&
+                        stroke.kind != RoadLineKind.None &&
+                        stroke.widthMeters > CatmullRomSpline.Epsilon)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static void DestroyGeneratedObject(GameObject root, bool registerUndo, bool destroySceneMaterials)
         {
             var meshes = CollectSceneMeshes(root);
+            var materials = destroySceneMaterials ? CollectSceneMaterials(root) : new List<Material>();
             if (registerUndo)
             {
                 Undo.RegisterFullObjectHierarchyUndo(root, UndoClearName);
@@ -259,6 +486,10 @@ namespace MitarashiDango.RoadAssetGenerator
                 {
                     Undo.DestroyObjectImmediate(mesh);
                 }
+                foreach (var material in materials)
+                {
+                    Undo.DestroyObjectImmediate(material);
+                }
             }
             else
             {
@@ -266,6 +497,10 @@ namespace MitarashiDango.RoadAssetGenerator
                 foreach (var mesh in meshes)
                 {
                     Object.DestroyImmediate(mesh);
+                }
+                foreach (var material in materials)
+                {
+                    Object.DestroyImmediate(material);
                 }
             }
         }
@@ -289,6 +524,30 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             return meshes;
+        }
+
+        private static List<Material> CollectSceneMaterials(GameObject root)
+        {
+            var materials = new List<Material>();
+            if (root == null)
+            {
+                return materials;
+            }
+
+            var renderers = root.GetComponentsInChildren<MeshRenderer>(true);
+            foreach (var renderer in renderers)
+            {
+                var sharedMaterials = renderer.sharedMaterials;
+                foreach (var material in sharedMaterials)
+                {
+                    if (material != null && !AssetDatabase.Contains(material) && !materials.Contains(material))
+                    {
+                        materials.Add(material);
+                    }
+                }
+            }
+
+            return materials;
         }
     }
 }

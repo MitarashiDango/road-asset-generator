@@ -197,6 +197,11 @@ namespace MitarashiDango.RoadAssetGenerator
 
             AddFloatHash(network.meshSegmentLengthMeters, ref hash);
             AddFloatHash(network.markingVertexOffsetMeters, ref hash);
+            hash = hash * 31 + (network.markingMaterial != null ? network.markingMaterial.GetInstanceID() : 0);
+            if (network.markingMaterial == null)
+            {
+                hash = hash * 31 + (RoadMaterialFactory.DetectPipeline() == PipelineTarget.URP ? 1 : 0);
+            }
         }
 
         private static void AddSurfaceStyleHash(RoadSegment segment, RoadNetwork network, ref int hash)

@@ -113,6 +113,7 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             DrawSplinePreview(segment);
+            DrawValidationWarnings(segment);
             DrawControlPointHandles(segment);
             HandleShiftClickAppend(segment);
         }
@@ -175,13 +176,13 @@ namespace MitarashiDango.RoadAssetGenerator
         private void DrawGenerationButtons()
         {
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Surface Generation", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Road Generation", EditorStyles.boldLabel);
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Regenerate Surface"))
+                if (GUILayout.Button("Regenerate Road"))
                 {
                     var group = Undo.GetCurrentGroup();
-                    Undo.SetCurrentGroupName("Regenerate Road Surface");
+                    Undo.SetCurrentGroupName("Regenerate Road Geometry");
                     foreach (var selectedTarget in targets)
                     {
                         RoadSegmentSurfaceGenerator.Regenerate((RoadSegment)selectedTarget, true);
@@ -189,10 +190,10 @@ namespace MitarashiDango.RoadAssetGenerator
                     Undo.CollapseUndoOperations(group);
                 }
 
-                if (GUILayout.Button("Clear Surface"))
+                if (GUILayout.Button("Clear Road"))
                 {
                     var group = Undo.GetCurrentGroup();
-                    Undo.SetCurrentGroupName("Clear Road Surface");
+                    Undo.SetCurrentGroupName("Clear Road Geometry");
                     foreach (var selectedTarget in targets)
                     {
                         RoadSegmentSurfaceGenerator.Clear((RoadSegment)selectedTarget, true);
@@ -210,6 +211,8 @@ namespace MitarashiDango.RoadAssetGenerator
                 var segment = (RoadSegment)target;
                 EditorGUILayout.ObjectField("Surfaces Root", segment.surfacesRoot, typeof(GameObject), true);
                 EditorGUILayout.IntField("Surface Object Count", segment.generatedSurfaceObjects?.Count ?? 0);
+                EditorGUILayout.ObjectField("Markings Root", segment.markingsRoot, typeof(GameObject), true);
+                EditorGUILayout.IntField("Marking Object Count", segment.generatedMarkingObjects?.Count ?? 0);
             }
         }
 
@@ -231,6 +234,60 @@ namespace MitarashiDango.RoadAssetGenerator
 
             Handles.color = new Color(0.1f, 0.7f, 1f, 0.85f);
             Handles.DrawAAPolyLine(3f, points);
+        }
+
+        private static void DrawValidationWarnings(RoadSegment segment)
+        {
+            if (!segment.TryCreateSpline(out var spline))
+            {
+                return;
+            }
+
+            var issues = RoadNetworkValidator.ValidateSegment(segment);
+            var hasCurvatureWarning = false;
+            foreach (var issue in issues)
+            {
+                if (issue.code == RoadNetworkValidationCode.CurvatureRadiusBelowHalfWidth)
+                {
+                    hasCurvatureWarning = true;
+                    break;
+                }
+            }
+
+            if (!hasCurvatureWarning)
+            {
+                return;
+            }
+
+            var table = spline.BuildArcLengthTable(24);
+            Handles.color = new Color(1f, 0.25f, 0.1f, 0.9f);
+            foreach (var issue in issues)
+            {
+                if (issue.code != RoadNetworkValidationCode.CurvatureRadiusBelowHalfWidth)
+                {
+                    continue;
+                }
+
+                var sample = table.SampleByDistance(issue.distanceMeters);
+                var worldPosition = segment.transform.TransformPoint(sample.position);
+                var normal = segment.transform.TransformDirection(sample.frame.up);
+                if (normal.sqrMagnitude <= CatmullRomSpline.Epsilon)
+                {
+                    normal = Vector3.up;
+                }
+                normal.Normalize();
+
+                var right = segment.transform.TransformDirection(sample.frame.right);
+                if (right.sqrMagnitude <= CatmullRomSpline.Epsilon)
+                {
+                    right = Vector3.right;
+                }
+                right.Normalize();
+
+                var size = HandleUtility.GetHandleSize(worldPosition) * 0.25f;
+                Handles.DrawWireDisc(worldPosition, normal, size);
+                Handles.DrawAAPolyLine(2f, worldPosition - right * size, worldPosition + right * size);
+            }
         }
 
         private static void DrawControlPointHandles(RoadSegment segment)

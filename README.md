@@ -15,21 +15,21 @@
 
 ### Package Manager から (GUI)
 
-Unity Editor の Package Manager から、GUI 操作のみでインストール可能です。
+Unity Editor の Package Manager からインストールできます。
 
 1. Unity メニューから `Window > Package Manager` を開く
-2. 左上の `+` ボタンを押下し、`Add package from git URL...` を選択
-3. 入力欄に以下の URL を貼り付けて `Add` を選択
+2. 左上の `+` ボタンを押して、`Add package from git URL...` を選ぶ
+3. 入力欄に URL を貼り付けて `Add` を選ぶ
 
    ```
    https://github.com/MitarashiDango/road-asset-generator.git
    ```
 
-   特定バージョンを固定する場合は、末尾に `#<タグ名>` を付与してください (例: `...#v1.2.0`)。
+   特定バージョンを使う場合は、末尾に `#<タグ名>` を付けます (例: `...#v1.2.0`)。
 
 ### manifest.json を直接編集
 
-`Packages/manifest.json` の `dependencies` に以下を追加します:
+`Packages/manifest.json` の `dependencies` に次の行を追加します:
 
 ```json
 "com.matcha-soft.road-asset-generator": "https://github.com/MitarashiDango/road-asset-generator.git"
@@ -37,8 +37,8 @@ Unity Editor の Package Manager から、GUI 操作のみでインストール�
 
 ### VRChat Creator Companion (VCC) 経由
 
-本パッケージは VRChat 専用ではないため上記の Package Manager 経由でのインストールが基本ですが、
-VRChat Creator Companion (VCC) を既に利用している環境向けに VPM リポジトリからのインストールにも対応しています。
+このパッケージは VRChat 専用ではないため、基本は Package Manager から導入します。
+VRChat Creator Companion (VCC) を使っている環境では、VPM リポジトリからもインストールできます。
 
 1. VCC の設定画面でパッケージリポジトリを追加
    - リポジトリ URL: `https://vpm.matcha-soft.com/repos.json`
@@ -49,9 +49,9 @@ VRChat Creator Companion (VCC) を既に利用している環境向けに VPM �
 1. メニュー `Tools > Road Asset Generator > Open Window` でウィンドウを開く
 2. **Quick Apply** から目的に近いプリセット(例: `追越禁止`)を選択
 3. **Output** セクションで `Output Folder` と `Name Prefix` を確認
-4. `Generate Textures + Material` を実行 → 各種 PNG とマテリアルが生成される
+4. `Generate Textures + Material` を実行し、各種 PNG とマテリアルを生成する
 
-詳細な手順は [Documents~/getting-started.md](./Documents~/getting-started.md) を参照してください。
+詳しい手順は [Documents~/getting-started.md](./Documents~/getting-started.md) を参照してください。
 
 ## ドキュメント
 
@@ -59,11 +59,12 @@ VRChat Creator Companion (VCC) を既に利用している環境向けに VPM �
 - [ウィンドウリファレンス](./Documents~/window-reference.md)(全パラメータ解説)
 - [プリセットと出力](./Documents~/presets-and-output.md)
 - [上級者向けトピック](./Documents~/advanced.md)
+- [道路ネットワーク生成](./Documentation~/road-network.md)
 - [開発者向け: ベイカー構成](./Documents~/dev-baker-architecture.md)
 - [開発者向け: 路面標示の追加](./Documents~/dev-adding-markings.md)
 - [開発者向け: 図形プリミティブの追加](./Documents~/dev-adding-shapes.md)
 
-目次は [Documents~/index.md](./Documents~/index.md) を参照してください。
+全体の目次は [Documents~/index.md](./Documents~/index.md) にあります。
 
 ## 動作要件
 
