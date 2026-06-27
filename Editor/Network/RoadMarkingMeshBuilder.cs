@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -177,47 +178,61 @@ namespace MitarashiDango.RoadAssetGenerator
                     continue;
                 }
 
-                if (vertices.Count > 0 &&
-                    vertices.Count + rows.Count * 2 > RoadSurfaceMeshBuilder.MaxVerticesPerMesh)
+                var rowStart = 0;
+                while (rowStart < rows.Count - 1)
                 {
-                    AddMesh(
-                        results,
+                    var availableRows = (RoadSurfaceMeshBuilder.MaxVerticesPerMesh - vertices.Count) / 2;
+                    if (availableRows < 2)
+                    {
+                        AddMesh(
+                            results,
+                            vertices,
+                            normals,
+                            tangents,
+                            uvs,
+                            colors,
+                            triangles,
+                            stroke.color,
+                            boundaryIndex,
+                            strokeIndex,
+                            chunkStart,
+                            chunkEnd,
+                            ref meshIndex);
+                        ClearMeshBuffers(vertices, normals, tangents, uvs, colors, triangles);
+                        chunkStart = float.PositiveInfinity;
+                        chunkEnd = 0f;
+                        continue;
+                    }
+
+                    var rowCount = Mathf.Min(availableRows, rows.Count - rowStart);
+                    if (rowCount < 2)
+                    {
+                        break;
+                    }
+
+                    var slice = rows.GetRange(rowStart, rowCount);
+                    AppendSpan(
                         vertices,
                         normals,
                         tangents,
                         uvs,
                         colors,
                         triangles,
-                        stroke.color,
-                        boundaryIndex,
-                        strokeIndex,
-                        chunkStart,
-                        chunkEnd,
-                        ref meshIndex);
-                    vertices.Clear();
-                    normals.Clear();
-                    tangents.Clear();
-                    uvs.Clear();
-                    colors.Clear();
-                    triangles.Clear();
-                    chunkStart = float.PositiveInfinity;
-                    chunkEnd = 0f;
-                }
+                        table,
+                        slice,
+                        stroke,
+                        centerOffsetMeters,
+                        settings);
+                    chunkStart = Mathf.Min(chunkStart, slice[0]);
+                    chunkEnd = Mathf.Max(chunkEnd, slice[slice.Count - 1]);
 
-                AppendSpan(
-                    vertices,
-                    normals,
-                    tangents,
-                    uvs,
-                    colors,
-                    triangles,
-                    table,
-                    rows,
-                    stroke,
-                    centerOffsetMeters,
-                    settings);
-                chunkStart = Mathf.Min(chunkStart, span.x);
-                chunkEnd = Mathf.Max(chunkEnd, span.y);
+                    if (rowStart + rowCount >= rows.Count)
+                    {
+                        break;
+                    }
+
+                    rowStart += rowCount - 1;
+                }
             }
 
             AddMesh(
@@ -234,6 +249,22 @@ namespace MitarashiDango.RoadAssetGenerator
                 chunkStart,
                 chunkEnd,
                 ref meshIndex);
+        }
+
+        private static void ClearMeshBuffers(
+            List<Vector3> vertices,
+            List<Vector3> normals,
+            List<Vector4> tangents,
+            List<Vector2> uvs,
+            List<Color> colors,
+            List<int> triangles)
+        {
+            vertices.Clear();
+            normals.Clear();
+            tangents.Clear();
+            uvs.Clear();
+            colors.Clear();
+            triangles.Clear();
         }
 
         private static void AppendSpan(
@@ -327,6 +358,7 @@ namespace MitarashiDango.RoadAssetGenerator
             mesh.SetUVs(0, uvs);
             mesh.SetColors(colors);
             mesh.SetTriangles(triangles, 0, true);
+            GenerateLightmapUvs(mesh, uvs, startDistanceMeters, endDistanceMeters);
             mesh.RecalculateBounds();
 
             results.Add(new RoadMarkingMeshData(
@@ -337,6 +369,50 @@ namespace MitarashiDango.RoadAssetGenerator
                 startDistanceMeters,
                 endDistanceMeters));
             meshIndex++;
+        }
+
+        private static void GenerateLightmapUvs(
+            Mesh mesh,
+            IReadOnlyList<Vector2> uvs,
+            float startDistanceMeters,
+            float endDistanceMeters)
+        {
+            var unwrapParam = new UnwrapParam();
+            UnwrapParam.SetDefaults(out unwrapParam);
+            if (!Unwrapping.GenerateSecondaryUVSet(mesh, unwrapParam))
+            {
+                mesh.SetUVs(1, BuildFallbackLightmapUvs(uvs, startDistanceMeters, endDistanceMeters));
+            }
+        }
+
+        private static List<Vector2> BuildFallbackLightmapUvs(
+            IReadOnlyList<Vector2> uvs,
+            float startDistanceMeters,
+            float endDistanceMeters)
+        {
+            var lightmapUvs = new List<Vector2>(uvs.Count);
+            var start = startDistanceMeters;
+            var end = endDistanceMeters;
+            if (float.IsInfinity(start) || float.IsInfinity(end) || end <= start)
+            {
+                start = float.PositiveInfinity;
+                end = 0f;
+                foreach (var uv in uvs)
+                {
+                    start = Mathf.Min(start, uv.y);
+                    end = Mathf.Max(end, uv.y);
+                }
+            }
+
+            var length = Mathf.Max(DistanceEpsilon, end - start);
+            foreach (var uv in uvs)
+            {
+                lightmapUvs.Add(new Vector2(
+                    Mathf.Clamp01(uv.x),
+                    Mathf.Clamp01((uv.y - start) / length)));
+            }
+
+            return lightmapUvs;
         }
 
         private static List<float> BuildAdaptiveDistances(

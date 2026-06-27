@@ -10,7 +10,7 @@
 4. Inspector の `Profile Template` で `RoadProfileTemplateAsset` を選び、`Apply To First Profile Key` を実行します。
 5. `Road Generation` の `Regenerate Road` または RoadNetwork 側の `Regenerate All Roads` で路面と区画線を再生成します。
 
-RoadSegment のプロファイルはテンプレートからコピーされます。テンプレートアセットを後から編集しても、適用済みの道路区間には自動反映されません。
+RoadSegment のプロファイルと Surface Style はテンプレートからコピーされます。テンプレートアセットを後から編集しても、適用済みの道路区間には自動反映されません。Network の Material / Texture Length は、Segment 側の Surface Style が未設定の古いシーン向け fallback として扱います。
 
 ## 生成内容
 
@@ -18,12 +18,12 @@ RoadSegment のプロファイルはテンプレートからコピーされま�
 - `Markings` 配下に区画線メッシュを生成します。
 - 区画線は `RoadProfile.boundaryLines` の `RoadLineStroke` を元に、色、線種、幅、破線長、破線間隔を反映します。
 - 二重線は 2 本のストロークと `strokeSpacingMeters` から生成します。`strokeSpacingMeters` は、2 本の線の内側エッジ間の隙間として扱います。
-- 区画線マテリアルは、Network の `markingMaterial` が指定されていれば複製して使い、ストロークの色を適用します。未指定の場合は、現在の Built-in / URP に合わせて、深度バイアス付きのパッケージ標準シェーダを優先します。見つからない場合だけ、各パイプラインの標準シェーダへフォールバックします。
-- 区画線マテリアルの Render Queue は Geometry より後ろに設定されます。パッケージ標準シェーダでは、レンダーパイプライン別の unlit shader で depth bias も使い、路面と重なる区画線が遠距離で路面側に隠れにくくしています。VR の Single Pass Instanced / Multiview に対応しやすいよう、stereo instancing 用の定型 macro も入れています。区画線の頂点は、RoadNetwork Inspector の `Marking Surface Offset Meters` で指定した距離だけ、路面から道路フレームの法線方向へ浮かせます。
+- 区画線マテリアルは、Network の `markingMaterial` が指定されていれば複製して使い、ストロークの色を適用します。未指定の場合は、現在の Built-in / URP に合わせたパッケージ標準の Lit シェーダを優先して使い、シーンのライト、影、GI、Light Probe、Reflection Probe の影響を受けます。URP package がないプロジェクトでも import エラーにならないよう、URP 標準シェーダには互換 fallback も含めています。
+- 区画線は RoadNetwork Inspector の `Marking Surface Offset Meters` だけ路面から浮かせ、標準シェーダでは深度バイアスも使います。路面に埋まって見える場合は、この offset を少し大きくしてください。
 - 生成 GameObject の Unity Layer は、RoadNetwork Inspector の `Default Surface Layer` / `Default Marking Layer` を既定値として使います。
   RoadSegment Inspector の `Override Surface Layer` / `Override Marking Layer` を使うと、路面と区画線を個別に Segment 値へ切り替えられます。
   Layer 変更は既存の `Surfaces` / `Markings` 配下にも反映され、再生成後も同じ実効値が使われます。
-- 区画線の生成オブジェクトには Collider を追加しません。MeshRenderer は影を落とさず、影も受けない設定で生成します。
+- 区画線の生成オブジェクトには Collider を追加しません。MeshRenderer は影を落とさず、影を受ける設定で生成します。カスタム `markingMaterial` を指定した場合も Renderer は同じ設定になりますが、ライト、影、GI、Probe への反応はユーザー指定シェーダの実装に依存します。
 
 ## API と拡張ポイント
 
@@ -41,7 +41,13 @@ RoadSegment のプロファイルはテンプレートからコピーされま�
 
 スプラインの評価には Runtime 側の `CatmullRomSpline` を使います。方式は centripetal Catmull-Rom です。フレームは World Y を基準に横方向を計算します。接線が鉛直に近く、World Y から横方向を作れない場合は、World Z、World X、最後に接線と最も揃っていない軸へ順にフォールバックします。
 
-制御点は RoadSegment ローカル座標です。高低差を持つ制御点も利用できますが、バンク、Collider、Lightmap UV2 は MVP では生成しません。
+制御点は RoadSegment ローカル座標です。高低差を持つ制御点も利用できますが、バンクと Collider は MVP では生成しません。区画線メッシュには Unity の secondary UV unwrap で静的ライトマップ用の UV2 を生成しますが、路面メッシュの Lightmap UV2 は未生成です。
+
+## ライティングとベイク
+
+区画線を静的ライトマップに含める場合は、区画線を生成した後に必要な Static / GI 設定をシーン側で行い、Lighting を bake してください。区画線を再生成すると生成メッシュと Renderer が差し替わるため、前回の bake 結果はその生成物には引き継がれません。再生成後は再度 bake してください。
+
+区画線が明るく浮いて見える場合は、Network の `markingMaterial` に unlit など独自シェーダを指定していないか、使用中の Render Pipeline と Probe / Lightmap 設定が合っているかを確認してください。影や GI の結果が不自然な場合は、Static / GI 設定、UV2、最後に再生成した後で bake し直しているかを確認してください。
 
 ## 検証と制限
 

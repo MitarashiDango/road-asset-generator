@@ -19,7 +19,8 @@ namespace MitarashiDango.RoadAssetGenerator
             new RoadProfileKey(),
         };
 
-        public bool useSurfaceStyle;
+        // 旧シーンで useSurfaceStyle が無効だった場合は、OnValidate でネットワーク既定値から surfaceStyle を作成して移行する。
+        [HideInInspector] public bool useSurfaceStyle = true;
         public RoadSurfaceStyle surfaceStyle = RoadSurfaceStyle.CreateDefault();
 
         public RoadSegmentConnection startConnection = new RoadSegmentConnection();
@@ -60,6 +61,16 @@ namespace MitarashiDango.RoadAssetGenerator
             }
 
             return profileKeys[0].profile;
+        }
+
+        protected override void OnValidate()
+        {
+            base.OnValidate();
+            if (!useSurfaceStyle)
+            {
+                surfaceStyle = RoadSurfaceStyle.FromNetworkDefaults(Network);
+                useSurfaceStyle = true;
+            }
         }
     }
 

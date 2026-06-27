@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -31,6 +32,7 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
                 Assert.That(meshes[0].mesh.colors[0], Is.EqualTo(Color.white));
                 Assert.That(meshes[1].color.r, Is.EqualTo(232f / 255f).Within(0.001f));
                 Assert.That(meshes[1].color.g, Is.EqualTo(168f / 255f).Within(0.001f));
+                AssertLightingReadyMarkingMesh(meshes[0].mesh);
             }
             finally
             {
@@ -71,6 +73,82 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
         }
 
         [Test]
+        public void TightCurveMarkingsFollowSurfaceOffset()
+        {
+            var networkObject = new GameObject("RoadNetwork_Tight_Curve_Marking_Test");
+            var surfaceMeshes = new List<RoadSurfaceMeshData>();
+            var markingMeshes = new List<RoadMarkingMeshData>();
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.meshSegmentLengthMeters = 100f;
+                network.maxSurfaceSampleLengthMeters = 1f;
+                network.maxSurfaceSampleAngleDegrees = 4f;
+                network.markingVertexOffsetMeters = 0.02f;
+                var segment = CreateSegment(
+                    network,
+                    RoadProfile.CreateDefaultTwoLane(),
+                    new[]
+                    {
+                        new Vector3(0f, 0f, 0f),
+                        new Vector3(0f, 0f, 15f),
+                        new Vector3(15f, 0f, 30f),
+                        new Vector3(30f, 0f, 30f),
+                    });
+
+                surfaceMeshes = RoadSurfaceMeshBuilder.Build(segment, network);
+                markingMeshes = RoadMarkingMeshBuilder.Build(segment, network);
+
+                Assert.That(surfaceMeshes, Has.Count.EqualTo(1));
+                Assert.That(markingMeshes, Has.Count.EqualTo(3));
+                Assert.That(markingMeshes[1].mesh.vertexCount, Is.GreaterThan(6));
+                Assert.That(markingMeshes[1].mesh.bounds.size.x, Is.GreaterThan(10f));
+                AssertLightingReadyMarkingMesh(markingMeshes[1].mesh);
+                foreach (var vertex in markingMeshes[1].mesh.vertices)
+                {
+                    Assert.That(vertex.y, Is.EqualTo(0.02f).Within(0.001f));
+                }
+            }
+            finally
+            {
+                DestroySurfaceMeshes(surfaceMeshes);
+                DestroyMeshes(markingMeshes);
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void LongSolidMarkingSplitsBeforeUInt16VertexLimit()
+        {
+            var networkObject = new GameObject("RoadNetwork_Long_Marking_Split_Test");
+            var meshes = new List<RoadMarkingMeshData>();
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.meshSegmentLengthMeters = 20000f;
+                network.maxSurfaceSampleLengthMeters = 0.25f;
+                network.maxSurfaceSampleAngleDegrees = 45f;
+                var segment = CreateSegment(network, CreateSingleStrokeProfile(RoadLineKind.Solid), 9000f);
+
+                meshes = RoadMarkingMeshBuilder.Build(segment, network);
+
+                Assert.That(meshes, Has.Count.GreaterThan(1));
+                foreach (var meshData in meshes)
+                {
+                    Assert.That(meshData.mesh.indexFormat, Is.EqualTo(IndexFormat.UInt16));
+                    Assert.That(meshData.mesh.vertexCount, Is.LessThanOrEqualTo(RoadSurfaceMeshBuilder.MaxVerticesPerMesh));
+                }
+            }
+            finally
+            {
+                DestroyMeshes(meshes);
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
         public void RegenerateCreatesSeparateMarkingsRootAndColoredMaterial()
         {
             var networkObject = new GameObject("RoadNetwork_Marking_Generator_Test");
@@ -94,7 +172,9 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
                 Assert.That(centerRenderer.sharedMaterial, Is.Not.SameAs(fallbackMaterial));
                 Assert.That(centerRenderer.sharedMaterial.renderQueue, Is.GreaterThanOrEqualTo((int)RenderQueue.Geometry + 20));
                 Assert.That(centerRenderer.shadowCastingMode, Is.EqualTo(ShadowCastingMode.Off));
-                Assert.That(centerRenderer.receiveShadows, Is.False);
+                Assert.That(centerRenderer.receiveShadows, Is.True);
+                Assert.That(centerRenderer.lightProbeUsage, Is.EqualTo(LightProbeUsage.BlendProbes));
+                Assert.That(centerRenderer.reflectionProbeUsage, Is.EqualTo(ReflectionProbeUsage.BlendProbes));
                 foreach (var markingObject in segment.generatedMarkingObjects)
                 {
                     Assert.That(markingObject.GetComponent<Collider>(), Is.Null);
@@ -115,6 +195,64 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
                 Object.DestroyImmediate(networkObject);
                 Object.DestroyImmediate(fallbackMaterial);
             }
+        }
+
+        [Test]
+        public void RepeatedRegenerationKeepsGeneratedHierarchyStable()
+        {
+            var networkObject = new GameObject("RoadNetwork_Repeated_Regeneration_Test");
+            RoadSegment segment = null;
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                segment = CreateSegment(network, RoadProfile.CreateDefaultTwoLane(), 20f);
+
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+                var surfaceCount = segment.generatedSurfaceObjects.Count;
+                var markingCount = segment.generatedMarkingObjects.Count;
+
+                for (var i = 0; i < 100; i++)
+                {
+                    RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+                    Assert.That(segment.transform.childCount, Is.EqualTo(2));
+                    Assert.That(segment.generatedSurfaceObjects, Has.Count.EqualTo(surfaceCount));
+                    Assert.That(segment.generatedMarkingObjects, Has.Count.EqualTo(markingCount));
+                }
+            }
+            finally
+            {
+                if (segment != null)
+                {
+                    RoadSegmentSurfaceGenerator.Clear(segment, false);
+                }
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void DefaultMarkingShaderNamesResolve()
+        {
+            var builtInShader = Shader.Find("MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedBuiltIn");
+            var urpShader = Shader.Find("MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedURP");
+
+            Assert.That(builtInShader, Is.Not.Null);
+            Assert.That(builtInShader.name, Is.EqualTo("MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedBuiltIn"));
+            Assert.That(urpShader, Is.Not.Null);
+            Assert.That(urpShader.name, Is.EqualTo("MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedURP"));
+        }
+
+        [Test]
+        public void UrpMarkingShaderDefinesForwardLitPass()
+        {
+            var shaderSource = AssetDatabase.LoadAssetAtPath<TextAsset>(
+                "Packages/com.matcha-soft.road-asset-generator/Runtime/Shaders/RoadMarkingDepthBiasedURP.shader");
+
+            Assert.That(shaderSource, Is.Not.Null);
+            Assert.That(shaderSource.text, Does.Contain("Name \"RoadMarkingForwardLit\""));
+            Assert.That(shaderSource.text, Does.Contain("\"LightMode\" = \"UniversalForward\""));
+            Assert.That(shaderSource.text, Does.Contain("UniversalFragmentPBR"));
+            Assert.That(shaderSource.text, Does.Not.Contain("Name \"RoadMarkingUnlit\""));
         }
 
         [Test]
@@ -162,19 +300,62 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
 
         private static RoadSegment CreateSegment(RoadNetwork network, RoadProfile profile, float lengthMeters)
         {
+            return CreateSegment(
+                network,
+                profile,
+                new[]
+                {
+                    new Vector3(0f, 0f, 0f),
+                    new Vector3(0f, 0f, lengthMeters),
+                });
+        }
+
+        private static RoadSegment CreateSegment(RoadNetwork network, RoadProfile profile, Vector3[] controlPoints)
+        {
             var segmentObject = new GameObject("RoadSegment_Marking_Test");
             segmentObject.transform.SetParent(network.transform, false);
             var segment = segmentObject.AddComponent<RoadSegment>();
-            segment.controlPoints = new[]
+            segment.controlPoints = new SplinePoint[controlPoints.Length];
+            for (var i = 0; i < controlPoints.Length; i++)
             {
-                new SplinePoint(new Vector3(0f, 0f, 0f)),
-                new SplinePoint(new Vector3(0f, 0f, lengthMeters)),
-            };
+                segment.controlPoints[i] = new SplinePoint(controlPoints[i]);
+            }
+
             segment.profileKeys = new[]
             {
                 new RoadProfileKey { profile = profile },
             };
             return segment;
+        }
+
+        private static void AssertLightingReadyMarkingMesh(Mesh mesh)
+        {
+            Assert.That(mesh, Is.Not.Null);
+            Assert.That(mesh.normals, Has.Length.EqualTo(mesh.vertexCount));
+            Assert.That(mesh.tangents, Has.Length.EqualTo(mesh.vertexCount));
+            Assert.That(mesh.uv, Has.Length.EqualTo(mesh.vertexCount));
+            Assert.That(mesh.uv2, Has.Length.EqualTo(mesh.vertexCount));
+            Assert.That(mesh.uv[0].x, Is.EqualTo(0f).Within(0.001f));
+            Assert.That(mesh.uv[1].x, Is.EqualTo(1f).Within(0.001f));
+
+            foreach (var normal in mesh.normals)
+            {
+                Assert.That(normal.sqrMagnitude, Is.GreaterThan(0.99f));
+                Assert.That(Vector3.Dot(normal.normalized, Vector3.up), Is.GreaterThan(0.999f));
+            }
+
+            foreach (var tangent in mesh.tangents)
+            {
+                var tangentDirection = new Vector3(tangent.x, tangent.y, tangent.z);
+                Assert.That(tangentDirection.sqrMagnitude, Is.GreaterThan(0.99f));
+                Assert.That(tangent.w, Is.EqualTo(-1f).Within(0.001f));
+            }
+
+            foreach (var uv in mesh.uv2)
+            {
+                Assert.That(uv.x, Is.InRange(0f, 1f));
+                Assert.That(uv.y, Is.InRange(0f, 1f));
+            }
         }
 
         private static RoadProfile CreateSingleStrokeProfile(RoadLineKind kind)
@@ -200,6 +381,22 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
         }
 
         private static void DestroyMeshes(IEnumerable<RoadMarkingMeshData> meshes)
+        {
+            if (meshes == null)
+            {
+                return;
+            }
+
+            foreach (var meshData in meshes)
+            {
+                if (meshData?.mesh != null)
+                {
+                    Object.DestroyImmediate(meshData.mesh);
+                }
+            }
+        }
+
+        private static void DestroySurfaceMeshes(IEnumerable<RoadSurfaceMeshData> meshes)
         {
             if (meshes == null)
             {

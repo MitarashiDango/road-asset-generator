@@ -5,7 +5,7 @@
 
   <engine:ScrollView name="root-scroll" mode="Vertical">
 
-    <!-- Header / preset asset section -->
+    <!-- ヘッダー / プリセットアセット -->
     <engine:VisualElement class="section">
       <engine:Label text="Road Asset Generator" class="title" />
 
@@ -34,10 +34,10 @@
 
     <engine:Label name="info-label" class="info" />
 
-    <!-- Cross-section preview (IMGUI) -->
+    <!-- 断面プレビュー (IMGUI) -->
     <engine:IMGUIContainer name="preview-container" class="preview" />
 
-    <!-- Output -->
+    <!-- 出力 -->
     <engine:Foldout name="output-foldout" text="Output" value="true">
       <engine:VisualElement class="indented">
         <engine:EnumField  label="Resolution"        binding-path="config.output.resolution" />
@@ -58,7 +58,7 @@
       </engine:VisualElement>
     </engine:Foldout>
 
-    <!-- Shoulders -->
+    <!-- 路側帯 -->
     <engine:Foldout name="shoulders-foldout" text="Shoulders (路側帯)" value="true">
       <engine:VisualElement class="indented">
         <engine:Label text="Left" class="bold" />
@@ -70,19 +70,19 @@
       </engine:VisualElement>
     </engine:Foldout>
 
-    <!-- Lanes (rebuilt dynamically) -->
+    <!-- 車線 (動的に再構築) -->
     <engine:Foldout name="lanes-foldout" text="Lanes" value="true">
       <engine:VisualElement name="lanes-container" class="indented" />
       <engine:Button name="add-lane-button" text="+ Add Lane" />
     </engine:Foldout>
 
-    <!-- Lines (rebuilt dynamically; auto-synced to lanes) -->
+    <!-- 区画線 (動的に再構築し、車線と自動同期) -->
     <engine:Foldout name="lines-foldout" text="Boundary Lines" value="true">
       <engine:Label text="Auto-managed. Count = Lanes + 1." class="info-note" />
       <engine:VisualElement name="lines-container" class="indented" />
     </engine:Foldout>
 
-    <!-- Asphalt -->
+    <!-- アスファルト -->
     <engine:Foldout name="asphalt-foldout" text="Asphalt (路面)" value="true">
       <engine:VisualElement class="indented">
         <editor:ColorField label="Base Color"      binding-path="config.asphalt.baseColor" />
@@ -93,7 +93,7 @@
       </engine:VisualElement>
     </engine:Foldout>
 
-    <!-- Weathering -->
+    <!-- 劣化表現 -->
     <engine:Foldout name="weathering-foldout" text="Weathering" value="true">
       <engine:VisualElement class="indented">
         <engine:Slider label="Line Edge Wear"   binding-path="config.weathering.lineWear"        low-value="0" high-value="1" show-input-field="true" tooltip="法線マップ上の塗装高さを減衰させる (1 で完全摩耗・平坦) と同時に、エッジに色ノイズを加える。" />
@@ -112,13 +112,13 @@
       </engine:VisualElement>
     </engine:Foldout>
 
-    <!-- Footer / generate -->
+    <!-- フッター / 生成 -->
     <engine:VisualElement class="row footer">
       <engine:Button name="refresh-preview-button" text="Refresh Preview" class="grow" />
       <engine:Button name="generate-button"        text="Generate Textures + Material" class="grow primary" />
     </engine:VisualElement>
 
-    <!-- Albedo preview thumbnail (manual repaint) -->
+    <!-- アルベドプレビューサムネイル (手動再描画) -->
     <engine:Image name="albedo-preview" class="albedo-preview" />
 
   </engine:ScrollView>

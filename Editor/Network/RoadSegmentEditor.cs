@@ -73,15 +73,9 @@ namespace MitarashiDango.RoadAssetGenerator
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Surface Style", EditorStyles.boldLabel);
 
-            var useProperty = serializedObject.FindProperty("useSurfaceStyle");
             var styleProperty = serializedObject.FindProperty("surfaceStyle");
 
-            EditorGUILayout.PropertyField(useProperty, new GUIContent("Use Segment Surface Style"));
-            var enabled = useProperty.hasMultipleDifferentValues || useProperty.boolValue;
-            using (new EditorGUI.DisabledScope(!enabled))
-            {
-                EditorGUILayout.PropertyField(styleProperty, true);
-            }
+            EditorGUILayout.PropertyField(styleProperty, true);
         }
 
         private void DrawSurfaceSamplingUi()

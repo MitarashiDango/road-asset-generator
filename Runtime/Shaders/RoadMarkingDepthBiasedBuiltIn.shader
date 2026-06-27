@@ -4,6 +4,8 @@ Shader "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedBuiltIn"
     {
         [MainColor] _BaseColor ("Color", Color) = (1,1,1,1)
         [HideInInspector] _Color ("Legacy Color", Color) = (1,1,1,1)
+        [HideInInspector] _Metallic ("Metallic", Range(0,1)) = 0
+        [HideInInspector] _Glossiness ("Smoothness", Range(0,1)) = 0.25
         [HideInInspector] _OffsetFactor ("Depth Bias Factor", Float) = -1
         [HideInInspector] _OffsetUnits ("Depth Bias Units", Float) = -1
     }
@@ -15,55 +17,36 @@ Shader "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedBuiltIn"
             "RenderType" = "Opaque"
             "Queue" = "Geometry+20"
         }
-        LOD 100
+        LOD 200
 
-        Pass
+        ZWrite On
+        ZTest LEqual
+        Cull Back
+        Offset [_OffsetFactor], [_OffsetUnits]
+
+        CGPROGRAM
+        #pragma target 3.0
+        #pragma surface Surf Standard fullforwardshadows
+        #pragma multi_compile_instancing
+
+        fixed4 _BaseColor;
+        half _Metallic;
+        half _Glossiness;
+
+        struct Input
         {
-            Name "RoadMarkingUnlit"
-            ZWrite On
-            ZTest LEqual
-            Cull Back
-            Offset [_OffsetFactor], [_OffsetUnits]
+            float2 uv_MainTex;
+        };
 
-            CGPROGRAM
-            #pragma target 2.0
-            #pragma vertex Vert
-            #pragma fragment Frag
-            #pragma multi_compile_instancing
-            #include "UnityCG.cginc"
-
-            struct Attributes
-            {
-                float4 vertex : POSITION;
-                UNITY_VERTEX_INPUT_INSTANCE_ID
-            };
-
-            struct Varyings
-            {
-                float4 positionCS : SV_POSITION;
-                UNITY_VERTEX_OUTPUT_STEREO
-            };
-
-            fixed4 _BaseColor;
-
-            Varyings Vert(Attributes input)
-            {
-                Varyings output;
-                UNITY_SETUP_INSTANCE_ID(input);
-                UNITY_INITIALIZE_OUTPUT(Varyings, output);
-                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-                output.positionCS = UnityObjectToClipPos(input.vertex);
-                return output;
-            }
-
-            fixed4 Frag(Varyings input) : SV_Target
-            {
-                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-                return _BaseColor;
-            }
-            ENDCG
+        void Surf(Input input, inout SurfaceOutputStandard output)
+        {
+            output.Albedo = _BaseColor.rgb;
+            output.Metallic = _Metallic;
+            output.Smoothness = _Glossiness;
+            output.Alpha = _BaseColor.a;
         }
+        ENDCG
     }
 
-    FallBack Off
+    FallBack "Standard"
 }

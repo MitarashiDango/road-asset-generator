@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -86,7 +87,7 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
         }
 
         [Test]
-        public void SegmentSurfaceStyleTextureLengthTakesPriorityOverNetworkFallback()
+        public void SegmentSurfaceStyleTextureLengthIgnoresLegacyDisabledFlag()
         {
             var networkObject = new GameObject("RoadNetwork_Surface_Style_Uv_Test");
             var segmentObject = new GameObject("RoadSegment_Surface_Style_Uv_Test");
@@ -101,7 +102,7 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
 
                 segmentObject.transform.SetParent(networkObject.transform, false);
                 var segment = segmentObject.AddComponent<RoadSegment>();
-                segment.useSurfaceStyle = true;
+                segment.useSurfaceStyle = false;
                 segment.surfaceStyle = new RoadSurfaceStyle
                 {
                     textureLengthMeters = 5f,
@@ -130,7 +131,7 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
         }
 
         [Test]
-        public void NetworkTextureLengthIsFallbackWhenSegmentSurfaceStyleIsDisabled()
+        public void NetworkTextureLengthIsFallbackWhenSegmentSurfaceStyleIsMissing()
         {
             var networkObject = new GameObject("RoadNetwork_Surface_Style_Fallback_Uv_Test");
             var segmentObject = new GameObject("RoadSegment_Surface_Style_Fallback_Uv_Test");
@@ -145,8 +146,7 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
 
                 segmentObject.transform.SetParent(networkObject.transform, false);
                 var segment = segmentObject.AddComponent<RoadSegment>();
-                Assert.That(segment.surfaceStyle, Is.Not.Null);
-                Assert.That(segment.useSurfaceStyle, Is.False);
+                segment.surfaceStyle = null;
                 segment.controlPoints = new[]
                 {
                     new SplinePoint(new Vector3(0f, 0f, 0f)),
@@ -185,7 +185,7 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
                 var network = networkObject.AddComponent<RoadNetwork>();
                 network.surfaceMaterial = fallbackMaterial;
                 var segment = CreateSegment(network, "RoadSegment_Surface_Style_Material_Test", 0f);
-                segment.useSurfaceStyle = true;
+                segment.useSurfaceStyle = false;
                 segment.surfaceStyle = new RoadSurfaceStyle
                 {
                     material = segmentMaterial,
@@ -369,7 +369,7 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
                 styleAsset.style.styleName = "Changed";
                 profileAsset.profile.lanes[0].widthMeters = 2f;
 
-                Assert.That(segment.useSurfaceStyle, Is.True);
+                Assert.That(segment.surfaceStyle, Is.Not.Null);
                 Assert.That(segment.surfaceStyle.styleName, Is.EqualTo("Urban"));
                 Assert.That(segment.surfaceStyle.pavementName, Is.EqualTo("Dense Asphalt"));
                 Assert.That(segment.surfaceStyle.material, Is.SameAs(material));
@@ -675,6 +675,40 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
                 RoadNetworkPreviewScheduler.FlushForTests();
                 Assert.That(segment.controlPoints[1].position.z, Is.EqualTo(25f).Within(0.001f));
                 AssertSurfaceEndV(segment, 2.5f);
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void EditorAppendControlPointPathRegeneratesPreview()
+        {
+            var networkObject = new GameObject("RoadNetwork_Append_Point_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                var segment = CreateSegment(network, "RoadSegment_Append_Point_Test", 0f);
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(2));
+                AssertSurfaceEndV(segment, 2f);
+
+                var appendMethod = typeof(RoadSegmentEditor).GetMethod(
+                    "AppendControlPoint",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null,
+                    new[] { typeof(RoadSegment), typeof(Vector3) },
+                    null);
+                Assert.That(appendMethod, Is.Not.Null);
+
+                appendMethod.Invoke(null, new object[] { segment, new Vector3(0f, 0f, 30f) });
+                RoadNetworkPreviewScheduler.FlushForTests();
+
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(3));
+                Assert.That(segment.controlPoints[2].position.z, Is.EqualTo(30f).Within(0.001f));
+                AssertSurfaceEndV(segment, 3f);
             }
             finally
             {

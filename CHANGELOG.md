@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- RoadNetwork / RoadSegment による道路ネットワーク生成を追加
+- Catmull-Rom スプラインから路面メッシュと区画線メッシュを生成する Editor 機能を追加
+- RoadSurfaceStyle / RoadSurfaceStyleAsset による Segment 単位の路面スタイルを追加
+- SceneView の制御点編集、Shift + クリックでの制御点追加、プレビュー再生成に対応
+- 生成 GameObject の Surface / Marking Layer override、Built-in / URP 向け区画線シェーダ、ローカル確認用サンプルを追加
+
 ## [1.2.0] - 2026-06-01
 
 ### Added

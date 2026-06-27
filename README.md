@@ -2,7 +2,7 @@
 
 ## 概要
 
-道路用テクスチャとマテリアルを生成する Unity Editor 拡張
+道路用テクスチャ / マテリアル生成と、スプライン道路からの路面・区画線メッシュ生成を行う Unity Editor 拡張
 
 ## 主な機能
 
@@ -10,6 +10,8 @@
 - URP / Built-in のマテリアル自動構成に対応
 - 日本仕様の代表的な構成を含む 6 種のクイックプリセット
 - 任意の `RoadConfigAsset` を作成することで、自作プリセットとして保存・再利用可能
+- `RoadNetwork` / `RoadSegment` から路面メッシュと区画線メッシュを生成
+- SceneView の制御点編集、Segment 単位の Surface Style、生成 GameObject の Layer override に対応
 
 ## インストール
 
@@ -46,12 +48,22 @@ VRChat Creator Companion (VCC) を使っている環境では、VPM リポジト
 
 ## クイックスタート
 
+### 道路テクスチャを生成する
+
 1. メニュー `Tools > Road Asset Generator > Open Window` でウィンドウを開く
 2. **Quick Apply** から目的に近いプリセット(例: `追越禁止`)を選択
 3. **Output** セクションで `Output Folder` と `Name Prefix` を確認
 4. `Generate Textures + Material` を実行し、各種 PNG とマテリアルを生成する
 
 詳しい手順は [Documents~/getting-started.md](./Documents~/getting-started.md) を参照してください。
+
+### 道路ネットワークを作成する
+
+1. `GameObject > Road Asset Generator > Road Network` で道路ネットワークを作成
+2. 作成された `RoadSegment` を選択し、SceneView で制御点を編集
+3. `Regenerate Road` または `Regenerate All Roads` で路面と区画線を再生成
+
+詳しい手順は [Documentation~/road-network.md](./Documentation~/road-network.md) を参照してください。
 
 ## ドキュメント
 

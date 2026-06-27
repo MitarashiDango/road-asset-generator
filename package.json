@@ -2,7 +2,7 @@
   "name": "com.matcha-soft.road-asset-generator",
   "version": "1.2.0",
   "displayName": "Road Asset Generator",
-  "description": "道路用テクスチャ・マテリアルをプロシージャル生成する Unity Editor 拡張。",
+  "description": "道路用テクスチャ・マテリアルと道路ネットワーク用メッシュをプロシージャル生成する Unity Editor 拡張。",
   "unity": "2022.3",
   "keywords": [],
   "author": {

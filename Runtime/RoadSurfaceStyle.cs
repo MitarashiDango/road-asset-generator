@@ -70,7 +70,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
         public static bool HasSegmentStyle(RoadSegment segment)
         {
-            return segment != null && segment.useSurfaceStyle && segment.surfaceStyle != null;
+            return segment != null && segment.surfaceStyle != null;
         }
     }
 }

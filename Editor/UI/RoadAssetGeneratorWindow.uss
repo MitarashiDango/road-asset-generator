@@ -1,4 +1,4 @@
-/* RoadAssetGeneratorWindow.uss */
+/* RoadAssetGeneratorWindow 用スタイル */
 
 #root-scroll {
     flex-grow: 1;

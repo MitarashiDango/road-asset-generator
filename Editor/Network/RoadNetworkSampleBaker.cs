@@ -8,13 +8,13 @@ using UnityEngine;
 
 namespace MitarashiDango.RoadAssetGenerator
 {
-    /// <summary>Package sample scenes の生成済みプレビューを保存する保守用ユーティリティ。</summary>
+    /// <summary>ローカル確認用サンプルシーンの生成済みプレビューを保存する保守用ユーティリティ。</summary>
     public static class RoadNetworkSampleBaker
     {
         private const string MvpSampleScenePath =
-            "Packages/com.matcha-soft.road-asset-generator/Samples~/RoadNetworkMvp/RoadNetworkMvpSample.unity";
+            "Assets/RoadAssetGeneratorLocalSamples/RoadNetworkMvp/RoadNetworkMvpSample.unity";
 
-        [MenuItem("Tools/Road Asset Generator/Samples/Regenerate Road Network MVP Sample")]
+        [MenuItem("Tools/Road Asset Generator/Samples/Regenerate Road Network Local Sample")]
         public static void RegenerateRoadNetworkMvpSample()
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())

@@ -19,6 +19,8 @@ namespace MitarashiDango.RoadAssetGenerator
         private const string UndoGeneratedLayerName = "Change Road Generated Layers";
         private const string BuiltInDepthBiasedMarkingShaderName = "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedBuiltIn";
         private const string UrpDepthBiasedMarkingShaderName = "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedURP";
+        private const float DefaultMarkingMetallic = 0f;
+        private const float DefaultMarkingSmoothness = 0.25f;
         private static readonly Dictionary<int, int> GeneratedHierarchyUndoGroups = new Dictionary<int, int>();
 
         public static void Regenerate(RoadSegment segment, bool registerUndo)
@@ -248,11 +250,23 @@ namespace MitarashiDango.RoadAssetGenerator
                 var material = CreateMarkingMaterial(meshData, network);
                 meshFilter.sharedMesh = meshData.mesh;
                 meshRenderer.sharedMaterial = material;
-                meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
-                meshRenderer.receiveShadows = false;
+                ConfigureMarkingRenderer(meshRenderer);
                 RegisterGeneratedObject(markingObject, meshData.mesh, material, root, registerUndo);
                 segment.generatedMarkingObjects.Add(markingObject);
             }
+        }
+
+        private static void ConfigureMarkingRenderer(MeshRenderer renderer)
+        {
+            if (renderer == null)
+            {
+                return;
+            }
+
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = true;
+            renderer.lightProbeUsage = LightProbeUsage.BlendProbes;
+            renderer.reflectionProbeUsage = ReflectionProbeUsage.BlendProbes;
         }
 
         private static void RegisterGeneratedObject(
@@ -446,6 +460,10 @@ namespace MitarashiDango.RoadAssetGenerator
                 ? new Material(source)
                 : new Material(FindDefaultMarkingShader());
             material.name = $"RoadMarking_{meshData.boundaryIndex:00}_{meshData.strokeIndex:00}";
+            if (source == null)
+            {
+                ConfigureDefaultMarkingMaterial(material);
+            }
             ApplyMarkingColor(material, meshData.color);
             var targetQueue = (int)RenderQueue.Geometry + 20;
             if (material.renderQueue < targetQueue)
@@ -460,8 +478,8 @@ namespace MitarashiDango.RoadAssetGenerator
             if (RoadMaterialFactory.DetectPipeline() == PipelineTarget.URP)
             {
                 var shader = Shader.Find(UrpDepthBiasedMarkingShaderName) ??
-                    Shader.Find("Universal Render Pipeline/Unlit") ??
-                    Shader.Find("Universal Render Pipeline/Lit");
+                    Shader.Find("Universal Render Pipeline/Lit") ??
+                    Shader.Find("Universal Render Pipeline/Unlit");
                 if (shader != null)
                 {
                     return shader;
@@ -472,6 +490,33 @@ namespace MitarashiDango.RoadAssetGenerator
                 Shader.Find("Standard") ??
                 Shader.Find("Sprites/Default") ??
                 Shader.Find("Hidden/InternalErrorShader");
+        }
+
+        private static void ConfigureDefaultMarkingMaterial(Material material)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            SetFloatIfPresent(material, "_Metallic", DefaultMarkingMetallic);
+            SetFloatIfPresent(material, "_Glossiness", DefaultMarkingSmoothness);
+            SetFloatIfPresent(material, "_Smoothness", DefaultMarkingSmoothness);
+            SetFloatIfPresent(material, "_WorkflowMode", 1f);
+            SetFloatIfPresent(material, "_Surface", 0f);
+            SetFloatIfPresent(material, "_Blend", 0f);
+            SetFloatIfPresent(material, "_AlphaClip", 0f);
+            SetFloatIfPresent(material, "_ZWrite", 1f);
+            SetFloatIfPresent(material, "_Cull", (float)CullMode.Back);
+            SetFloatIfPresent(material, "_ReceiveShadows", 1f);
+        }
+
+        private static void SetFloatIfPresent(Material material, string propertyName, float value)
+        {
+            if (material.HasProperty(propertyName))
+            {
+                material.SetFloat(propertyName, value);
+            }
         }
 
         private static void ApplyMarkingColor(Material material, Color color)
