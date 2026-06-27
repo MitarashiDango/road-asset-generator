@@ -171,10 +171,7 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
                 Assert.That(centerRenderer, Is.Not.Null);
                 Assert.That(centerRenderer.sharedMaterial, Is.Not.SameAs(fallbackMaterial));
                 Assert.That(centerRenderer.sharedMaterial.renderQueue, Is.GreaterThanOrEqualTo((int)RenderQueue.Geometry + 20));
-                Assert.That(centerRenderer.shadowCastingMode, Is.EqualTo(ShadowCastingMode.Off));
-                Assert.That(centerRenderer.receiveShadows, Is.True);
-                Assert.That(centerRenderer.lightProbeUsage, Is.EqualTo(LightProbeUsage.BlendProbes));
-                Assert.That(centerRenderer.reflectionProbeUsage, Is.EqualTo(ReflectionProbeUsage.BlendProbes));
+                AssertMarkingRendererContract(centerRenderer);
                 foreach (var markingObject in segment.generatedMarkingObjects)
                 {
                     Assert.That(markingObject.GetComponent<Collider>(), Is.Null);
@@ -194,6 +191,48 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             {
                 Object.DestroyImmediate(networkObject);
                 Object.DestroyImmediate(fallbackMaterial);
+            }
+        }
+
+        [Test]
+        public void EnsureGeneratedSurfaceReferencesRepairsExistingMarkingRendererSettings()
+        {
+            var networkObject = new GameObject("RoadNetwork_Marking_Repair_Test");
+            RoadSegment segment = null;
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                segment = CreateSegment(network, RoadProfile.CreateDefaultTwoLane(), 20f);
+
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+                var staleRenderer = segment.generatedMarkingObjects[0].GetComponent<MeshRenderer>();
+                SetStaleMarkingRendererContract(staleRenderer);
+
+                var userObject = new GameObject("User Object Outside Markings");
+                userObject.transform.SetParent(segment.transform, false);
+                var userRenderer = userObject.AddComponent<MeshRenderer>();
+                SetStaleMarkingRendererContract(userRenderer);
+
+                segment.markingsRoot = null;
+                segment.generatedMarkingObjects = new List<GameObject>();
+
+                Assert.That(RoadSegmentSurfaceGenerator.EnsureGeneratedSurfaceReferences(segment), Is.True);
+                Assert.That(segment.markingsRoot, Is.Not.Null);
+                Assert.That(segment.generatedMarkingObjects, Contains.Item(staleRenderer.gameObject));
+                AssertMarkingRendererContract(staleRenderer);
+                Assert.That(userRenderer.shadowCastingMode, Is.EqualTo(ShadowCastingMode.On));
+                Assert.That(userRenderer.receiveShadows, Is.False);
+                Assert.That(userRenderer.lightProbeUsage, Is.EqualTo(LightProbeUsage.Off));
+                Assert.That(userRenderer.reflectionProbeUsage, Is.EqualTo(ReflectionProbeUsage.Off));
+            }
+            finally
+            {
+                if (segment != null)
+                {
+                    RoadSegmentSurfaceGenerator.Clear(segment, false);
+                }
+                Object.DestroyImmediate(networkObject);
             }
         }
 
@@ -433,6 +472,22 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
                 Assert.That(generatedObject, Is.Not.Null);
                 Assert.That(generatedObject.layer, Is.EqualTo(expectedLayer));
             }
+        }
+
+        private static void AssertMarkingRendererContract(MeshRenderer renderer)
+        {
+            Assert.That(renderer.shadowCastingMode, Is.EqualTo(ShadowCastingMode.Off));
+            Assert.That(renderer.receiveShadows, Is.True);
+            Assert.That(renderer.lightProbeUsage, Is.EqualTo(LightProbeUsage.BlendProbes));
+            Assert.That(renderer.reflectionProbeUsage, Is.EqualTo(ReflectionProbeUsage.BlendProbes));
+        }
+
+        private static void SetStaleMarkingRendererContract(MeshRenderer renderer)
+        {
+            renderer.shadowCastingMode = ShadowCastingMode.On;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
         }
 
         private static Color ReadMaterialColor(Material material)

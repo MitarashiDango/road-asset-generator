@@ -22,7 +22,7 @@ RoadSegment のプロファイルと Surface Style はテンプレートから�
 - 区画線は RoadNetwork Inspector の `Marking Surface Offset Meters` だけ路面から浮かせ、標準シェーダでは深度バイアスも使います。路面に埋まって見える場合は、この offset を少し大きくしてください。
 - 生成 GameObject の Unity Layer は、RoadNetwork Inspector の `Default Surface Layer` / `Default Marking Layer` を既定値として使います。
   RoadSegment Inspector の `Override Surface Layer` / `Override Marking Layer` を使うと、路面と区画線を個別に Segment 値へ切り替えられます。
-  Layer 変更は既存の `Surfaces` / `Markings` 配下にも反映され、再生成後も同じ実効値が使われます。
+  Layer 変更は既存の `Surfaces` / `Markings` 配下にも反映され、再生成後も同じ実効値が使われます。既存の `Markings` 参照を修復した場合も、生成済み区画線 Renderer は現在の影・Probe 設定へ補修されます。
 - 区画線の生成オブジェクトには Collider を追加しません。MeshRenderer は影を落とさず、影を受ける設定で生成します。カスタム `markingMaterial` を指定した場合も Renderer は同じ設定になりますが、ライト、影、GI、Probe への反応はユーザー指定シェーダの実装に依存します。
 
 ## API と拡張ポイント
@@ -48,6 +48,8 @@ RoadSegment のプロファイルと Surface Style はテンプレートから�
 区画線を静的ライトマップに含める場合は、区画線を生成した後に必要な Static / GI 設定をシーン側で行い、Lighting を bake してください。区画線を再生成すると生成メッシュと Renderer が差し替わるため、前回の bake 結果はその生成物には引き継がれません。再生成後は再度 bake してください。
 
 区画線が明るく浮いて見える場合は、Network の `markingMaterial` に unlit など独自シェーダを指定していないか、使用中の Render Pipeline と Probe / Lightmap 設定が合っているかを確認してください。影や GI の結果が不自然な場合は、Static / GI 設定、UV2、最後に再生成した後で bake し直しているかを確認してください。
+
+Console に package 標準の区画線シェーダが見つからない warning が出た場合は、Fallback シェーダで生成されています。この場合、深度バイアスが弱くなる、または失われる可能性があります。パッケージの shader import 状態、使用中の Render Pipeline、必要に応じて同等の Offset を持つカスタム `markingMaterial` を確認してください。
 
 ## 検証と制限
 

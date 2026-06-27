@@ -22,6 +22,7 @@ namespace MitarashiDango.RoadAssetGenerator
         private const float DefaultMarkingMetallic = 0f;
         private const float DefaultMarkingSmoothness = 0.25f;
         private static readonly Dictionary<int, int> GeneratedHierarchyUndoGroups = new Dictionary<int, int>();
+        private static readonly HashSet<string> LoggedMarkingShaderFallbacks = new HashSet<string>();
 
         public static void Regenerate(RoadSegment segment, bool registerUndo)
         {
@@ -161,6 +162,10 @@ namespace MitarashiDango.RoadAssetGenerator
                 ref segment.markingsRoot,
                 ref segment.generatedMarkingObjects,
                 ShouldRequireMarkings(segment));
+            if (markingsOk)
+            {
+                RepairGeneratedMarkingRenderers(segment.markingsRoot, segment.generatedMarkingObjects, false);
+            }
             return surfacesOk && markingsOk;
         }
 
@@ -189,6 +194,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 segment.generatedMarkingObjects,
                 RoadGeneratedLayerSettings.ResolveMarkingLayer(segment, network),
                 registerUndo);
+            RepairGeneratedMarkingRenderers(markingsRoot, segment.generatedMarkingObjects, registerUndo);
         }
 
         private static void CreateSurfaceObjects(
@@ -267,6 +273,65 @@ namespace MitarashiDango.RoadAssetGenerator
             renderer.receiveShadows = true;
             renderer.lightProbeUsage = LightProbeUsage.BlendProbes;
             renderer.reflectionProbeUsage = ReflectionProbeUsage.BlendProbes;
+        }
+
+        private static void RepairGeneratedMarkingRenderers(
+            GameObject root,
+            IReadOnlyList<GameObject> generatedObjects,
+            bool registerUndo)
+        {
+            if (root != null)
+            {
+                var rootRenderers = root.GetComponentsInChildren<MeshRenderer>(true);
+                foreach (var renderer in rootRenderers)
+                {
+                    RepairGeneratedMarkingRenderer(renderer, registerUndo);
+                }
+                return;
+            }
+
+            if (generatedObjects != null && generatedObjects.Count > 0)
+            {
+                foreach (var generatedObject in generatedObjects)
+                {
+                    if (generatedObject == null)
+                    {
+                        continue;
+                    }
+
+                    var renderers = generatedObject.GetComponentsInChildren<MeshRenderer>(true);
+                    foreach (var renderer in renderers)
+                    {
+                        RepairGeneratedMarkingRenderer(renderer, registerUndo);
+                    }
+                }
+                return;
+            }
+        }
+
+        private static void RepairGeneratedMarkingRenderer(MeshRenderer renderer, bool registerUndo)
+        {
+            if (!NeedsMarkingRendererRepair(renderer))
+            {
+                return;
+            }
+
+            if (registerUndo)
+            {
+                Undo.RecordObject(renderer, UndoGeneratedLayerName);
+            }
+
+            ConfigureMarkingRenderer(renderer);
+            EditorUtility.SetDirty(renderer);
+        }
+
+        private static bool NeedsMarkingRendererRepair(MeshRenderer renderer)
+        {
+            return renderer != null &&
+                (renderer.shadowCastingMode != ShadowCastingMode.Off ||
+                !renderer.receiveShadows ||
+                renderer.lightProbeUsage != LightProbeUsage.BlendProbes ||
+                renderer.reflectionProbeUsage != ReflectionProbeUsage.BlendProbes);
         }
 
         private static void RegisterGeneratedObject(
@@ -475,21 +540,63 @@ namespace MitarashiDango.RoadAssetGenerator
 
         private static Shader FindDefaultMarkingShader()
         {
-            if (RoadMaterialFactory.DetectPipeline() == PipelineTarget.URP)
+            var pipeline = RoadMaterialFactory.DetectPipeline();
+            if (pipeline == PipelineTarget.URP)
             {
-                var shader = Shader.Find(UrpDepthBiasedMarkingShaderName) ??
-                    Shader.Find("Universal Render Pipeline/Lit") ??
-                    Shader.Find("Universal Render Pipeline/Unlit");
+                var shader = Shader.Find(UrpDepthBiasedMarkingShaderName);
                 if (shader != null)
                 {
                     return shader;
                 }
+
+                shader = Shader.Find("Universal Render Pipeline/Lit") ??
+                    Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader != null)
+                {
+                    return UseFallbackMarkingShader(UrpDepthBiasedMarkingShaderName, shader);
+                }
+
+                var builtInFallbackShader = Shader.Find(BuiltInDepthBiasedMarkingShaderName);
+                if (builtInFallbackShader != null)
+                {
+                    return UseFallbackMarkingShader(UrpDepthBiasedMarkingShaderName, builtInFallbackShader);
+                }
+            }
+            else
+            {
+                var builtInShader = Shader.Find(BuiltInDepthBiasedMarkingShaderName);
+                if (builtInShader != null)
+                {
+                    return builtInShader;
+                }
             }
 
-            return Shader.Find(BuiltInDepthBiasedMarkingShaderName) ??
-                Shader.Find("Standard") ??
+            var fallbackShader = Shader.Find("Standard") ??
                 Shader.Find("Sprites/Default") ??
                 Shader.Find("Hidden/InternalErrorShader");
+            var expectedShaderName = pipeline == PipelineTarget.URP
+                ? UrpDepthBiasedMarkingShaderName
+                : BuiltInDepthBiasedMarkingShaderName;
+            return UseFallbackMarkingShader(expectedShaderName, fallbackShader);
+        }
+
+        private static Shader UseFallbackMarkingShader(string expectedShaderName, Shader fallbackShader)
+        {
+            if (fallbackShader == null)
+            {
+                return null;
+            }
+
+            var key = $"{expectedShaderName}|{fallbackShader.name}";
+            if (LoggedMarkingShaderFallbacks.Add(key))
+            {
+                Debug.LogWarning(
+                    $"[RoadAssetGenerator] Default road marking shader '{expectedShaderName}' was not found. " +
+                    $"Falling back to '{fallbackShader.name}'. Package depth-bias behavior may be weaker or unavailable; " +
+                    "generated markings can z-fight with the road until the package shader imports correctly or a custom material provides equivalent offset.");
+            }
+
+            return fallbackShader;
         }
 
         private static void ConfigureDefaultMarkingMaterial(Material material)
