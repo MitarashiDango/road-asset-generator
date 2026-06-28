@@ -197,6 +197,61 @@ namespace MitarashiDango.RoadAssetGenerator
             RepairGeneratedMarkingRenderers(markingsRoot, segment.generatedMarkingObjects, registerUndo);
         }
 
+        public static bool AreGeneratedSurfaceCollidersSynced(RoadSegment segment)
+        {
+            if (segment == null)
+            {
+                return true;
+            }
+
+            if (segment.surfacesRoot != null && segment.surfacesRoot.GetComponent<Collider>() != null)
+            {
+                return false;
+            }
+
+            var generatedObjects = segment.generatedSurfaceObjects;
+            if (generatedObjects == null || generatedObjects.Count == 0)
+            {
+                return segment.surfacesRoot == null;
+            }
+
+            var shouldGenerateCollider = RoadSurfaceColliderSettings.ResolveGenerateSurfaceColliders(
+                segment,
+                segment.Network);
+            foreach (var generatedObject in generatedObjects)
+            {
+                if (generatedObject == null)
+                {
+                    return false;
+                }
+
+                var meshFilter = generatedObject.GetComponent<MeshFilter>();
+                if (meshFilter == null || meshFilter.sharedMesh == null)
+                {
+                    return false;
+                }
+
+                var colliders = generatedObject.GetComponents<Collider>();
+                var meshCollider = generatedObject.GetComponent<MeshCollider>();
+                if (shouldGenerateCollider)
+                {
+                    if (colliders.Length != 1 ||
+                        meshCollider == null ||
+                        meshCollider.sharedMesh != meshFilter.sharedMesh ||
+                        meshCollider.convex)
+                    {
+                        return false;
+                    }
+                }
+                else if (colliders.Length != 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         private static void CreateSurfaceObjects(
             RoadSegment segment,
             RoadNetwork network,
@@ -213,6 +268,9 @@ namespace MitarashiDango.RoadAssetGenerator
             var layer = RoadGeneratedLayerSettings.ResolveSurfaceLayer(segment, network);
             root.layer = layer;
             var material = ResolveSurfaceMaterial(segment, network);
+            var shouldGenerateCollider = RoadSurfaceColliderSettings.ResolveGenerateSurfaceColliders(
+                segment,
+                network);
             segment.generatedSurfaceObjects = new List<GameObject>(meshes.Count);
 
             for (var i = 0; i < meshes.Count; i++)
@@ -224,6 +282,12 @@ namespace MitarashiDango.RoadAssetGenerator
                 var meshRenderer = surfaceObject.AddComponent<MeshRenderer>();
                 meshFilter.sharedMesh = meshData.mesh;
                 meshRenderer.sharedMaterial = material;
+                if (shouldGenerateCollider)
+                {
+                    var meshCollider = surfaceObject.AddComponent<MeshCollider>();
+                    meshCollider.sharedMesh = meshFilter.sharedMesh;
+                }
+
                 RegisterGeneratedObject(surfaceObject, meshData.mesh, null, root, registerUndo);
                 segment.generatedSurfaceObjects.Add(surfaceObject);
             }

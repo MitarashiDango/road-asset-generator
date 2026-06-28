@@ -15,6 +15,7 @@ namespace MitarashiDango.RoadAssetGenerator
         [Min(0f)] public float markingVertexOffsetMeters = 0.005f;
         [Min(0.25f)] public float maxSurfaceSampleLengthMeters = 1f;
         [Range(1f, 45f)] public float maxSurfaceSampleAngleDegrees = 4f;
+        public bool generateSurfaceColliders = true;
         [Range(0, 31)] public int defaultGeneratedSurfaceLayer;
         [Range(0, 31)] public int defaultGeneratedMarkingLayer;
 
@@ -93,6 +94,24 @@ namespace MitarashiDango.RoadAssetGenerator
         public static int NormalizeLayer(int layer)
         {
             return Mathf.Clamp(layer, 0, 31);
+        }
+    }
+
+    /// <summary>生成済み路面 GameObject の MeshCollider 生成設定解決。</summary>
+    public static class RoadSurfaceColliderSettings
+    {
+        public const bool DefaultGenerateSurfaceColliders = true;
+
+        public static bool ResolveGenerateSurfaceColliders(RoadSegment segment, RoadNetwork network)
+        {
+            if (segment != null && segment.overrideSurfaceColliderSettings)
+            {
+                return segment.generateSurfaceColliders;
+            }
+
+            return network != null
+                ? network.generateSurfaceColliders
+                : DefaultGenerateSurfaceColliders;
         }
     }
 }

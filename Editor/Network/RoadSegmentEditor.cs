@@ -27,6 +27,8 @@ namespace MitarashiDango.RoadAssetGenerator
                 "overrideSurfaceSamplingSettings",
                 "maxSurfaceSampleLengthMeters",
                 "maxSurfaceSampleAngleDegrees",
+                "overrideSurfaceColliderSettings",
+                "generateSurfaceColliders",
                 "overrideGeneratedSurfaceLayer",
                 "generatedSurfaceLayer",
                 "overrideGeneratedMarkingLayer",
@@ -37,6 +39,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 "generatedMarkingObjects");
             DrawSurfaceStyleUi();
             DrawSurfaceSamplingUi();
+            DrawSurfaceColliderUi();
             var generationChanged = EditorGUI.EndChangeCheck();
 
             EditorGUI.BeginChangeCheck();
@@ -93,6 +96,38 @@ namespace MitarashiDango.RoadAssetGenerator
             {
                 EditorGUILayout.PropertyField(lengthProperty, new GUIContent("Max Surface Sample Length Meters"));
                 EditorGUILayout.PropertyField(angleProperty, new GUIContent("Max Surface Sample Angle Degrees"));
+            }
+        }
+
+        private void DrawSurfaceColliderUi()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Surface Colliders", EditorStyles.boldLabel);
+
+            var overrideProperty = serializedObject.FindProperty("overrideSurfaceColliderSettings");
+            var generateProperty = serializedObject.FindProperty("generateSurfaceColliders");
+
+            EditorGUILayout.PropertyField(
+                overrideProperty,
+                new GUIContent("Override Surface Collider Settings"));
+            var enabled = overrideProperty.hasMultipleDifferentValues || overrideProperty.boolValue;
+            using (new EditorGUI.DisabledScope(!enabled))
+            {
+                var inheritedValue = GetInheritedGenerateSurfaceColliders(out var inheritedMixedValue);
+                var currentValue = enabled
+                    ? generateProperty.boolValue
+                    : inheritedValue;
+                EditorGUI.showMixedValue = enabled
+                    ? generateProperty.hasMultipleDifferentValues
+                    : inheritedMixedValue;
+                var value = EditorGUILayout.Toggle(
+                    new GUIContent("Generate Surface Colliders"),
+                    currentValue);
+                EditorGUI.showMixedValue = false;
+                if (enabled && value != generateProperty.boolValue)
+                {
+                    generateProperty.boolValue = value;
+                }
             }
         }
 
@@ -551,6 +586,35 @@ namespace MitarashiDango.RoadAssetGenerator
 
             var segment = target as RoadSegment;
             return RoadGeneratedLayerSettings.ResolveMarkingLayer(null, segment != null ? segment.Network : null);
+        }
+
+        private bool GetInheritedGenerateSurfaceColliders(out bool mixedValue)
+        {
+            mixedValue = false;
+            var hasValue = false;
+            var inheritedValue = RoadSurfaceColliderSettings.DefaultGenerateSurfaceColliders;
+
+            foreach (var selectedTarget in targets)
+            {
+                var segment = selectedTarget as RoadSegment;
+                var currentValue = RoadSurfaceColliderSettings.ResolveGenerateSurfaceColliders(
+                    null,
+                    segment != null ? segment.Network : null);
+                if (!hasValue)
+                {
+                    inheritedValue = currentValue;
+                    hasValue = true;
+                    continue;
+                }
+
+                if (currentValue != inheritedValue)
+                {
+                    mixedValue = true;
+                    return inheritedValue;
+                }
+            }
+
+            return inheritedValue;
         }
     }
 }

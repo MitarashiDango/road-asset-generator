@@ -27,6 +27,41 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
         }
 
         [Test]
+        public void RoadNetworkDefaultsGenerateSurfaceColliders()
+        {
+            var networkObject = new GameObject("RoadNetwork_Default_Surface_Collider_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+
+                Assert.That(network.generateSurfaceColliders, Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void RoadSegmentDefaultsGenerateSurfaceColliders()
+        {
+            var segmentObject = new GameObject("RoadSegment_Default_Surface_Collider_Test");
+
+            try
+            {
+                var segment = segmentObject.AddComponent<RoadSegment>();
+
+                Assert.That(segment.overrideSurfaceColliderSettings, Is.False);
+                Assert.That(segment.generateSurfaceColliders, Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(segmentObject);
+            }
+        }
+
+        [Test]
         public void StraightSurfaceUsesProfileWidthAndTextureLengthUv()
         {
             var networkObject = new GameObject("RoadNetwork_Surface_Test");
@@ -204,6 +239,74 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
                 Object.DestroyImmediate(networkObject);
                 Object.DestroyImmediate(fallbackMaterial);
                 Object.DestroyImmediate(segmentMaterial);
+            }
+        }
+
+        [Test]
+        public void RegenerateAddsSurfaceMeshColliderByDefault()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Collider_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                var segment = CreateSegment(network, "RoadSegment_Surface_Collider_Test", 0f);
+
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+
+                AssertGeneratedSurfaceColliderState(segment, true);
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void NetworkSurfaceColliderSettingDisablesGeneratedColliders()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Collider_Disabled_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.generateSurfaceColliders = false;
+                var segment = CreateSegment(network, "RoadSegment_Surface_Collider_Disabled_Test", 0f);
+
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+
+                AssertGeneratedSurfaceColliderState(segment, false);
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void SegmentSurfaceColliderOverrideTakesPriorityOverNetworkSetting()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Collider_Override_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                var segment = CreateSegment(network, "RoadSegment_Surface_Collider_Override_Test", 0f);
+
+                network.generateSurfaceColliders = true;
+                segment.overrideSurfaceColliderSettings = true;
+                segment.generateSurfaceColliders = false;
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+                AssertGeneratedSurfaceColliderState(segment, false);
+
+                network.generateSurfaceColliders = false;
+                segment.generateSurfaceColliders = true;
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+                AssertGeneratedSurfaceColliderState(segment, true);
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
             }
         }
 
@@ -743,6 +846,135 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             }
         }
 
+        [Test]
+        public void PreviewScheduleUpdatesGeneratedSurfaceColliders()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Collider_Preview_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                var segment = CreateSegment(network, "RoadSegment_Surface_Collider_Preview_Test", 0f);
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+                AssertGeneratedSurfaceColliderState(segment, true);
+
+                network.generateSurfaceColliders = false;
+                RoadNetworkPreviewScheduler.Schedule(network);
+                RoadNetworkPreviewScheduler.FlushForTests();
+                AssertGeneratedSurfaceColliderState(segment, false);
+
+                segment.overrideSurfaceColliderSettings = true;
+                segment.generateSurfaceColliders = true;
+                RoadNetworkPreviewScheduler.Schedule(segment);
+                RoadNetworkPreviewScheduler.FlushForTests();
+                AssertGeneratedSurfaceColliderState(segment, true);
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void SurfaceColliderSettingUndoRedoKeepsPreviewInSync()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Collider_Undo_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                var segment = CreateSegment(network, "RoadSegment_Surface_Collider_Undo_Test", 0f);
+                RoadNetworkPreviewScheduler.Schedule(segment);
+                RoadNetworkPreviewScheduler.FlushForTests();
+                AssertGeneratedSurfaceColliderState(segment, true);
+
+                Undo.IncrementCurrentGroup();
+                Undo.SetCurrentGroupName("Disable Road Surface Colliders");
+                RoadSegmentSurfaceGenerator.RegisterGeneratedHierarchyUndo(segment, "Disable Road Surface Colliders");
+                Undo.RecordObject(network, "Disable Road Surface Colliders");
+                network.generateSurfaceColliders = false;
+                RoadNetworkPreviewScheduler.Schedule(network, true);
+                Undo.IncrementCurrentGroup();
+                RoadNetworkPreviewScheduler.FlushForTests();
+                AssertGeneratedSurfaceColliderState(segment, false);
+
+                Undo.PerformUndo();
+                RoadNetworkPreviewScheduler.FlushForTests();
+                Assert.That(network.generateSurfaceColliders, Is.True);
+                AssertGeneratedSurfaceColliderState(segment, true);
+
+                Undo.PerformRedo();
+                RoadNetworkPreviewScheduler.FlushForTests();
+                Assert.That(network.generateSurfaceColliders, Is.False);
+                AssertGeneratedSurfaceColliderState(segment, false);
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void SegmentEditorShowsInheritedSurfaceColliderValueForMultiSelection()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Collider_Inspector_Test");
+            Editor editor = null;
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.generateSurfaceColliders = false;
+                var first = CreateSegment(network, "RoadSegment_Surface_Collider_Inspector_First", 0f);
+                var second = CreateSegment(network, "RoadSegment_Surface_Collider_Inspector_Second", 10f);
+
+                editor = Editor.CreateEditor(new Object[] { first, second }, typeof(RoadSegmentEditor));
+
+                var inheritedValue = InvokeGetInheritedGenerateSurfaceColliders(editor, out var mixedValue);
+                Assert.That(inheritedValue, Is.False);
+                Assert.That(mixedValue, Is.False);
+            }
+            finally
+            {
+                if (editor != null)
+                {
+                    Object.DestroyImmediate(editor);
+                }
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void SegmentEditorShowsMixedInheritedSurfaceColliderValueForMultiSelection()
+        {
+            var firstNetworkObject = new GameObject("RoadNetwork_Surface_Collider_Inspector_First_Network");
+            var secondNetworkObject = new GameObject("RoadNetwork_Surface_Collider_Inspector_Second_Network");
+            Editor editor = null;
+
+            try
+            {
+                var firstNetwork = firstNetworkObject.AddComponent<RoadNetwork>();
+                firstNetwork.generateSurfaceColliders = false;
+                var secondNetwork = secondNetworkObject.AddComponent<RoadNetwork>();
+                secondNetwork.generateSurfaceColliders = true;
+                var first = CreateSegment(firstNetwork, "RoadSegment_Surface_Collider_Inspector_First", 0f);
+                var second = CreateSegment(secondNetwork, "RoadSegment_Surface_Collider_Inspector_Second", 10f);
+
+                editor = Editor.CreateEditor(new Object[] { first, second }, typeof(RoadSegmentEditor));
+
+                InvokeGetInheritedGenerateSurfaceColliders(editor, out var mixedValue);
+                Assert.That(mixedValue, Is.True);
+            }
+            finally
+            {
+                if (editor != null)
+                {
+                    Object.DestroyImmediate(editor);
+                }
+                Object.DestroyImmediate(firstNetworkObject);
+                Object.DestroyImmediate(secondNetworkObject);
+            }
+        }
+
         private static void DestroyMeshes(IEnumerable<RoadSurfaceMeshData> meshes)
         {
             if (meshes == null)
@@ -800,6 +1032,47 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             var renderer = segment.generatedSurfaceObjects[0].GetComponent<MeshRenderer>();
             Assert.That(renderer, Is.Not.Null);
             return renderer;
+        }
+
+        private static bool InvokeGetInheritedGenerateSurfaceColliders(Editor editor, out bool mixedValue)
+        {
+            var method = typeof(RoadSegmentEditor).GetMethod(
+                "GetInheritedGenerateSurfaceColliders",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.That(method, Is.Not.Null);
+            var arguments = new object[] { false };
+            var value = (bool)method.Invoke(editor, arguments);
+            mixedValue = (bool)arguments[0];
+            return value;
+        }
+
+        private static void AssertGeneratedSurfaceColliderState(RoadSegment segment, bool expectedCollider)
+        {
+            Assert.That(segment.surfacesRoot, Is.Not.Null);
+            Assert.That(segment.surfacesRoot.GetComponent<Collider>(), Is.Null);
+            Assert.That(segment.generatedSurfaceObjects, Is.Not.Null);
+            Assert.That(segment.generatedSurfaceObjects, Has.Count.GreaterThan(0));
+            foreach (var surfaceObject in segment.generatedSurfaceObjects)
+            {
+                Assert.That(surfaceObject, Is.Not.Null);
+                var meshFilter = surfaceObject.GetComponent<MeshFilter>();
+                Assert.That(meshFilter, Is.Not.Null);
+                Assert.That(meshFilter.sharedMesh, Is.Not.Null);
+
+                var meshCollider = surfaceObject.GetComponent<MeshCollider>();
+                if (expectedCollider)
+                {
+                    Assert.That(surfaceObject.GetComponents<Collider>(), Has.Length.EqualTo(1));
+                    Assert.That(meshCollider, Is.Not.Null);
+                    Assert.That(meshCollider.sharedMesh, Is.SameAs(meshFilter.sharedMesh));
+                    Assert.That(meshCollider.convex, Is.False);
+                }
+                else
+                {
+                    Assert.That(surfaceObject.GetComponents<Collider>(), Is.Empty);
+                    Assert.That(meshCollider, Is.Null);
+                }
+            }
         }
 
         private static Material CreateTestMaterial(string name)

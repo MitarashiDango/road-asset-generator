@@ -12,6 +12,7 @@
 - 任意の `RoadConfigAsset` を作成することで、自作プリセットとして保存・再利用可能
 - `RoadNetwork` / `RoadSegment` から路面メッシュと区画線メッシュを生成
 - SceneView の制御点編集、Segment 単位の Surface Style、生成 GameObject の Layer override に対応
+- 路面 MeshCollider の既定生成と、Network / Segment 単位の有効化切り替えに対応
 
 ## インストール
 

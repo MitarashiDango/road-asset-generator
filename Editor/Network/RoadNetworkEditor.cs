@@ -72,6 +72,9 @@ namespace MitarashiDango.RoadAssetGenerator
                     "Distance to lift generated markings from the road surface along the road normal."));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("maxSurfaceSampleLengthMeters"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("maxSurfaceSampleAngleDegrees"));
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("generateSurfaceColliders"),
+                new GUIContent("Generate Surface Colliders"));
         }
 
         private void DrawGeneratedLayerProperties()

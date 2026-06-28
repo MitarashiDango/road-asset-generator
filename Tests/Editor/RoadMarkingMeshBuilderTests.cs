@@ -165,7 +165,17 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
 
                 Assert.That(segment.surfacesRoot, Is.Not.Null);
                 Assert.That(segment.markingsRoot, Is.Not.Null);
+                Assert.That(segment.surfacesRoot.GetComponent<Collider>(), Is.Null);
+                Assert.That(segment.generatedSurfaceObjects, Has.Count.GreaterThan(0));
                 Assert.That(segment.generatedMarkingObjects, Has.Count.EqualTo(3));
+
+                var surfaceObject = segment.generatedSurfaceObjects[0];
+                var surfaceFilter = surfaceObject.GetComponent<MeshFilter>();
+                var surfaceCollider = surfaceObject.GetComponent<MeshCollider>();
+                Assert.That(surfaceFilter, Is.Not.Null);
+                Assert.That(surfaceObject.GetComponents<Collider>(), Has.Length.EqualTo(1));
+                Assert.That(surfaceCollider, Is.Not.Null);
+                Assert.That(surfaceCollider.sharedMesh, Is.SameAs(surfaceFilter.sharedMesh));
 
                 var centerRenderer = segment.generatedMarkingObjects[1].GetComponent<MeshRenderer>();
                 Assert.That(centerRenderer, Is.Not.Null);

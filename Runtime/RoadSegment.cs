@@ -29,6 +29,8 @@ namespace MitarashiDango.RoadAssetGenerator
         public bool overrideSurfaceSamplingSettings;
         [Min(0.25f)] public float maxSurfaceSampleLengthMeters = 1f;
         [Range(1f, 45f)] public float maxSurfaceSampleAngleDegrees = 4f;
+        public bool overrideSurfaceColliderSettings;
+        public bool generateSurfaceColliders = true;
         public bool overrideGeneratedSurfaceLayer;
         [Range(0, 31)] public int generatedSurfaceLayer;
         public bool overrideGeneratedMarkingLayer;

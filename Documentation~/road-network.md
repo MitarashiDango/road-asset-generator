@@ -23,6 +23,8 @@ RoadSegment のプロファイルと Surface Style はテンプレートから�
 - 生成 GameObject の Unity Layer は、RoadNetwork Inspector の `Default Surface Layer` / `Default Marking Layer` を既定値として使います。
   RoadSegment Inspector の `Override Surface Layer` / `Override Marking Layer` を使うと、路面と区画線を個別に Segment 値へ切り替えられます。
   Layer 変更は既存の `Surfaces` / `Markings` 配下にも反映され、再生成後も同じ実効値が使われます。既存の `Markings` 参照を修復した場合も、生成済み区画線 Renderer は現在の影・Probe 設定へ補修されます。
+- 路面チャンクには既定で `MeshCollider` を生成します。`Surfaces` root には Collider を追加せず、各 `Surface_000` などの `MeshCollider.sharedMesh` は同じ GameObject の表示用 Mesh と同じ参照になります。
+  RoadNetwork Inspector の `Generate Surface Colliders` を切り替えるとネットワーク全体の既定を変更できます。RoadSegment Inspector の `Override Surface Collider Settings` を使うと、特定 Segment だけ `Generate Surface Colliders` を上書きできます。
 - 区画線の生成オブジェクトには Collider を追加しません。MeshRenderer は影を落とさず、影を受ける設定で生成します。カスタム `markingMaterial` を指定した場合も Renderer は同じ設定になりますが、ライト、影、GI、Probe への反応はユーザー指定シェーダの実装に依存します。
 
 ## API と拡張ポイント
@@ -41,7 +43,7 @@ RoadSegment のプロファイルと Surface Style はテンプレートから�
 
 スプラインの評価には Runtime 側の `CatmullRomSpline` を使います。方式は centripetal Catmull-Rom です。フレームは World Y を基準に横方向を計算します。接線が鉛直に近く、World Y から横方向を作れない場合は、World Z、World X、最後に接線と最も揃っていない軸へ順にフォールバックします。
 
-制御点は RoadSegment ローカル座標です。高低差を持つ制御点も利用できますが、バンクと Collider は MVP では生成しません。区画線メッシュには Unity の secondary UV unwrap で静的ライトマップ用の UV2 を生成しますが、路面メッシュの Lightmap UV2 は未生成です。
+制御点は RoadSegment ローカル座標です。高低差を持つ制御点も利用できますが、バンクは MVP では生成しません。路面 Collider は表示用の路面 Mesh と同じ形状で生成されます。区画線メッシュには Unity の secondary UV unwrap で静的ライトマップ用の UV2 を生成しますが、路面メッシュの Lightmap UV2 は未生成です。
 
 ## ライティングとベイク
 
