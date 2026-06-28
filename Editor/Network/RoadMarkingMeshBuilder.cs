@@ -37,7 +37,7 @@ namespace MitarashiDango.RoadAssetGenerator
     public static class RoadMarkingMeshBuilder
     {
         private const int ArcLengthSamplesPerSegment = 48;
-        private const float MinimumSampleLengthMeters = 0.25f;
+        private const float MinimumSampleLengthMeters = RoadSurfaceSamplingSettings.MinimumSampleLengthMeters;
         private const int MaxAdaptiveDepth = 12;
         private const float DistanceEpsilon = 0.001f;
 
@@ -622,7 +622,10 @@ namespace MitarashiDango.RoadAssetGenerator
                 this.meshSegmentLengthMeters = Mathf.Max(1f, meshSegmentLengthMeters);
                 this.markingVertexOffsetMeters = Mathf.Max(0f, markingVertexOffsetMeters);
                 this.maxSampleLengthMeters = Mathf.Max(MinimumSampleLengthMeters, maxSampleLengthMeters);
-                this.maxSampleAngleDegrees = Mathf.Clamp(maxSampleAngleDegrees, 1f, 45f);
+                this.maxSampleAngleDegrees = Mathf.Clamp(
+                    maxSampleAngleDegrees,
+                    RoadSurfaceSamplingSettings.MinimumSampleAngleDegrees,
+                    RoadSurfaceSamplingSettings.MaximumSampleAngleDegrees);
                 this.referenceUp = NormalizeOrFallback(referenceUp, Vector3.up);
                 this.fallbackForward = NormalizeOrFallback(fallbackForward, Vector3.forward);
                 this.fallbackRight = NormalizeOrFallback(fallbackRight, Vector3.right);
@@ -642,13 +645,8 @@ namespace MitarashiDango.RoadAssetGenerator
 
                 var meshSegmentLengthMeters = network != null ? network.meshSegmentLengthMeters : 100f;
                 var markingVertexOffsetMeters = network != null ? network.markingVertexOffsetMeters : 0.005f;
-                var maxSampleLengthMeters = network != null ? network.maxSurfaceSampleLengthMeters : 1f;
-                var maxSampleAngleDegrees = network != null ? network.maxSurfaceSampleAngleDegrees : 4f;
-                if (segment != null && segment.overrideSurfaceSamplingSettings)
-                {
-                    maxSampleLengthMeters = segment.maxSurfaceSampleLengthMeters;
-                    maxSampleAngleDegrees = segment.maxSurfaceSampleAngleDegrees;
-                }
+                var maxSampleLengthMeters = RoadSurfaceSamplingSettings.ResolveMaxSampleLengthMeters(segment, network);
+                var maxSampleAngleDegrees = RoadSurfaceSamplingSettings.ResolveMaxSampleAngleDegrees(segment, network);
 
                 return new RoadMarkingBuildSettings(
                     meshSegmentLengthMeters,

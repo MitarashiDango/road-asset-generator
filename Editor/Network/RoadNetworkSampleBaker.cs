@@ -39,10 +39,7 @@ namespace MitarashiDango.RoadAssetGenerator
 
             var scene = EditorSceneManager.OpenScene(scenePath);
             var segments = new List<RoadSegment>();
-            foreach (var root in scene.GetRootGameObjects())
-            {
-                root.GetComponentsInChildren(true, segments);
-            }
+            CollectRoadSegments(scene, segments);
 
             if (segments.Count == 0)
             {
@@ -65,6 +62,27 @@ namespace MitarashiDango.RoadAssetGenerator
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log($"[RoadAssetGenerator] Baked road network sample scene: {scenePath}");
+        }
+
+        private static void CollectRoadSegments(UnityEngine.SceneManagement.Scene scene, List<RoadSegment> segments)
+        {
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                segments.AddRange(root.GetComponentsInChildren<RoadSegment>(true));
+            }
+
+            if (segments.Count > 0)
+            {
+                return;
+            }
+
+            foreach (var segment in Resources.FindObjectsOfTypeAll<RoadSegment>())
+            {
+                if (segment.gameObject.scene == scene)
+                {
+                    segments.Add(segment);
+                }
+            }
         }
     }
 }

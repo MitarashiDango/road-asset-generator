@@ -26,8 +26,9 @@ namespace MitarashiDango.RoadAssetGenerator
         public const int MaxVerticesPerMesh = 65534;
 
         private const int ArcLengthSamplesPerSegment = 48;
-        private const float MinimumSampleLengthMeters = 0.25f;
+        private const float MinimumSampleLengthMeters = RoadSurfaceSamplingSettings.MinimumSampleLengthMeters;
         private const int MaxAdaptiveDepth = 12;
+        private const int MaxColumnsPerMesh = (MaxVerticesPerMesh / 2) - 1;
 
         public static List<RoadSurfaceMeshData> Build(RoadSegment segment, RoadNetwork network)
         {
@@ -177,7 +178,9 @@ namespace MitarashiDango.RoadAssetGenerator
             RoadSurfaceBuildSettings settings,
             ref int meshIndex)
         {
-            var maxRowsPerMesh = MaxVerticesPerMesh / 2;
+            var columnCount = CalculateColumnCount(totalWidthMeters, settings.maxColumnWidthMeters);
+            var verticesPerRow = columnCount + 1;
+            var maxRowsPerMesh = Mathf.Max(2, MaxVerticesPerMesh / verticesPerRow);
             var startIndex = 0;
             while (startIndex < rows.Count - 1)
             {
@@ -188,7 +191,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 }
 
                 var slice = rows.GetRange(startIndex, rowCount);
-                var mesh = BuildMesh(slice, table, totalWidthMeters, settings.textureLengthMeters, settings);
+                var mesh = BuildMesh(slice, table, totalWidthMeters, columnCount, settings);
                 mesh.name = $"RoadSurface_{meshIndex:000}";
                 results.Add(new RoadSurfaceMeshData(mesh, slice[0], slice[slice.Count - 1]));
                 meshIndex++;
@@ -201,17 +204,18 @@ namespace MitarashiDango.RoadAssetGenerator
             IReadOnlyList<float> distances,
             CatmullRomArcLengthTable table,
             float totalWidthMeters,
-            float textureLengthMeters,
+            int columnCount,
             RoadSurfaceBuildSettings settings)
         {
             var halfWidth = totalWidthMeters * 0.5f;
-            var vertexCount = distances.Count * 2;
+            var verticesPerRow = columnCount + 1;
+            var vertexCount = distances.Count * verticesPerRow;
             var vertices = new Vector3[vertexCount];
             var normals = new Vector3[vertexCount];
             var tangents = new Vector4[vertexCount];
             var uvs = new Vector2[vertexCount];
-            var triangles = new int[(distances.Count - 1) * 6];
-            var textureLength = Mathf.Max(0.1f, textureLengthMeters);
+            var triangles = new int[(distances.Count - 1) * columnCount * 6];
+            var textureLength = Mathf.Max(0.1f, settings.textureLengthMeters);
 
             for (var row = 0; row < distances.Count; row++)
             {
@@ -221,41 +225,46 @@ namespace MitarashiDango.RoadAssetGenerator
                     settings.fallbackForward,
                     settings.fallbackRight);
                 var frame = sample.frame;
-                var left = frame.position - frame.right * halfWidth;
-                var right = frame.position + frame.right * halfWidth;
                 var normal = Vector3.Cross(frame.tangent, frame.right).normalized;
                 if (normal.sqrMagnitude <= CatmullRomSpline.Epsilon)
                 {
                     normal = frame.up;
                 }
 
-                var leftIndex = row * 2;
-                var rightIndex = leftIndex + 1;
-                vertices[leftIndex] = left;
-                vertices[rightIndex] = right;
-                normals[leftIndex] = normal;
-                normals[rightIndex] = normal;
-                tangents[leftIndex] = new Vector4(frame.right.x, frame.right.y, frame.right.z, -1f);
-                tangents[rightIndex] = tangents[leftIndex];
+                var rowStart = row * verticesPerRow;
+                var tangent = new Vector4(frame.right.x, frame.right.y, frame.right.z, -1f);
                 var v = distances[row] / textureLength;
-                uvs[leftIndex] = new Vector2(0f, v);
-                uvs[rightIndex] = new Vector2(1f, v);
+                for (var column = 0; column <= columnCount; column++)
+                {
+                    var widthT = column / (float)columnCount;
+                    var lateral = Mathf.Lerp(-halfWidth, halfWidth, widthT);
+                    var index = rowStart + column;
+                    vertices[index] = frame.position + frame.right * lateral;
+                    normals[index] = normal;
+                    tangents[index] = tangent;
+                    uvs[index] = new Vector2(widthT, v);
+                }
             }
 
             var tri = 0;
             for (var row = 0; row < distances.Count - 1; row++)
             {
-                var currentLeft = row * 2;
-                var currentRight = currentLeft + 1;
-                var nextLeft = currentLeft + 2;
-                var nextRight = nextLeft + 1;
+                var currentRowStart = row * verticesPerRow;
+                var nextRowStart = currentRowStart + verticesPerRow;
+                for (var column = 0; column < columnCount; column++)
+                {
+                    var currentLeft = currentRowStart + column;
+                    var currentRight = currentLeft + 1;
+                    var nextLeft = nextRowStart + column;
+                    var nextRight = nextLeft + 1;
 
-                triangles[tri++] = currentLeft;
-                triangles[tri++] = nextLeft;
-                triangles[tri++] = currentRight;
-                triangles[tri++] = currentRight;
-                triangles[tri++] = nextLeft;
-                triangles[tri++] = nextRight;
+                    triangles[tri++] = currentLeft;
+                    triangles[tri++] = nextLeft;
+                    triangles[tri++] = currentRight;
+                    triangles[tri++] = currentRight;
+                    triangles[tri++] = nextLeft;
+                    triangles[tri++] = nextRight;
+                }
             }
 
             var mesh = new Mesh
@@ -271,12 +280,20 @@ namespace MitarashiDango.RoadAssetGenerator
             return mesh;
         }
 
+        private static int CalculateColumnCount(float totalWidthMeters, float maxColumnWidthMeters)
+        {
+            var columnWidth = Mathf.Max(RoadSurfaceSamplingSettings.MinimumColumnWidthMeters, maxColumnWidthMeters);
+            var requestedColumns = Mathf.CeilToInt(totalWidthMeters / columnWidth);
+            return Mathf.Clamp(requestedColumns, 1, MaxColumnsPerMesh);
+        }
+
         private readonly struct RoadSurfaceBuildSettings
         {
             public readonly float textureLengthMeters;
             public readonly float meshSegmentLengthMeters;
             public readonly float maxSampleLengthMeters;
             public readonly float maxSampleAngleDegrees;
+            public readonly float maxColumnWidthMeters;
             public readonly Vector3 referenceUp;
             public readonly Vector3 fallbackForward;
             public readonly Vector3 fallbackRight;
@@ -286,6 +303,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 float meshSegmentLengthMeters,
                 float maxSampleLengthMeters,
                 float maxSampleAngleDegrees,
+                float maxColumnWidthMeters,
                 Vector3 referenceUp,
                 Vector3 fallbackForward,
                 Vector3 fallbackRight)
@@ -293,7 +311,11 @@ namespace MitarashiDango.RoadAssetGenerator
                 this.textureLengthMeters = Mathf.Max(0.1f, textureLengthMeters);
                 this.meshSegmentLengthMeters = Mathf.Max(1f, meshSegmentLengthMeters);
                 this.maxSampleLengthMeters = Mathf.Max(MinimumSampleLengthMeters, maxSampleLengthMeters);
-                this.maxSampleAngleDegrees = Mathf.Clamp(maxSampleAngleDegrees, 1f, 45f);
+                this.maxSampleAngleDegrees = Mathf.Clamp(
+                    maxSampleAngleDegrees,
+                    RoadSurfaceSamplingSettings.MinimumSampleAngleDegrees,
+                    RoadSurfaceSamplingSettings.MaximumSampleAngleDegrees);
+                this.maxColumnWidthMeters = Mathf.Max(RoadSurfaceSamplingSettings.MinimumColumnWidthMeters, maxColumnWidthMeters);
                 this.referenceUp = NormalizeOrFallback(referenceUp, Vector3.up);
                 this.fallbackForward = NormalizeOrFallback(fallbackForward, Vector3.forward);
                 this.fallbackRight = NormalizeOrFallback(fallbackRight, Vector3.right);
@@ -313,19 +335,16 @@ namespace MitarashiDango.RoadAssetGenerator
 
                 var textureLengthMeters = RoadSurfaceStyle.ResolveTextureLengthMeters(segment, network);
                 var meshSegmentLengthMeters = network != null ? network.meshSegmentLengthMeters : 100f;
-                var maxSampleLengthMeters = network != null ? network.maxSurfaceSampleLengthMeters : 1f;
-                var maxSampleAngleDegrees = network != null ? network.maxSurfaceSampleAngleDegrees : 4f;
-                if (segment != null && segment.overrideSurfaceSamplingSettings)
-                {
-                    maxSampleLengthMeters = segment.maxSurfaceSampleLengthMeters;
-                    maxSampleAngleDegrees = segment.maxSurfaceSampleAngleDegrees;
-                }
+                var maxSampleLengthMeters = RoadSurfaceSamplingSettings.ResolveMaxSampleLengthMeters(segment, network);
+                var maxSampleAngleDegrees = RoadSurfaceSamplingSettings.ResolveMaxSampleAngleDegrees(segment, network);
+                var maxColumnWidthMeters = RoadSurfaceSamplingSettings.ResolveMaxColumnWidthMeters(segment, network);
 
                 return new RoadSurfaceBuildSettings(
                     textureLengthMeters,
                     meshSegmentLengthMeters,
                     maxSampleLengthMeters,
                     maxSampleAngleDegrees,
+                    maxColumnWidthMeters,
                     referenceUp,
                     fallbackForward,
                     fallbackRight);

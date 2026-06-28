@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -26,8 +27,8 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
 
                 Assert.That(meshes, Has.Count.EqualTo(3));
                 var leftVertices = meshes[0].mesh.vertices;
-                Assert.That(leftVertices[0].x, Is.EqualTo(-3.075f).Within(0.001f));
-                Assert.That(leftVertices[1].x, Is.EqualTo(-2.925f).Within(0.001f));
+                AssertContainsVertexX(leftVertices, -3.075f);
+                AssertContainsVertexX(leftVertices, -2.925f);
                 Assert.That(leftVertices[0].y, Is.EqualTo(0.01f).Within(0.001f));
                 Assert.That(meshes[0].mesh.colors[0], Is.EqualTo(Color.white));
                 Assert.That(meshes[1].color.r, Is.EqualTo(232f / 255f).Within(0.001f));
@@ -294,14 +295,15 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
         [Test]
         public void UrpMarkingShaderDefinesForwardLitPass()
         {
-            var shaderSource = AssetDatabase.LoadAssetAtPath<TextAsset>(
-                "Packages/com.matcha-soft.road-asset-generator/Runtime/Shaders/RoadMarkingDepthBiasedURP.shader");
+            const string shaderPath =
+                "Packages/com.matcha-soft.road-asset-generator/Runtime/Shaders/RoadMarkingDepthBiasedURP.shader";
 
-            Assert.That(shaderSource, Is.Not.Null);
-            Assert.That(shaderSource.text, Does.Contain("Name \"RoadMarkingForwardLit\""));
-            Assert.That(shaderSource.text, Does.Contain("\"LightMode\" = \"UniversalForward\""));
-            Assert.That(shaderSource.text, Does.Contain("UniversalFragmentPBR"));
-            Assert.That(shaderSource.text, Does.Not.Contain("Name \"RoadMarkingUnlit\""));
+            Assert.That(File.Exists(shaderPath), Is.True);
+            var shaderSource = File.ReadAllText(shaderPath);
+            Assert.That(shaderSource, Does.Contain("Name \"RoadMarkingForwardLit\""));
+            Assert.That(shaderSource, Does.Contain("\"LightMode\" = \"UniversalForward\""));
+            Assert.That(shaderSource, Does.Contain("UniversalFragmentPBR"));
+            Assert.That(shaderSource, Does.Not.Contain("Name \"RoadMarkingUnlit\""));
         }
 
         [Test]
@@ -377,6 +379,32 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             return segment;
         }
 
+        private static void AssertContainsVertexX(IReadOnlyList<Vector3> vertices, float expected)
+        {
+            foreach (var vertex in vertices)
+            {
+                if (Mathf.Abs(vertex.x - expected) <= 0.001f)
+                {
+                    return;
+                }
+            }
+
+            Assert.Fail($"Expected a vertex with x = {expected}.");
+        }
+
+        private static void AssertContainsUvX(IReadOnlyList<Vector2> uvs, float expected)
+        {
+            foreach (var uv in uvs)
+            {
+                if (Mathf.Abs(uv.x - expected) <= 0.001f)
+                {
+                    return;
+                }
+            }
+
+            Assert.Fail($"Expected a UV with x = {expected}.");
+        }
+
         private static void AssertLightingReadyMarkingMesh(Mesh mesh)
         {
             Assert.That(mesh, Is.Not.Null);
@@ -384,8 +412,8 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             Assert.That(mesh.tangents, Has.Length.EqualTo(mesh.vertexCount));
             Assert.That(mesh.uv, Has.Length.EqualTo(mesh.vertexCount));
             Assert.That(mesh.uv2, Has.Length.EqualTo(mesh.vertexCount));
-            Assert.That(mesh.uv[0].x, Is.EqualTo(0f).Within(0.001f));
-            Assert.That(mesh.uv[1].x, Is.EqualTo(1f).Within(0.001f));
+            AssertContainsUvX(mesh.uv, 0f);
+            AssertContainsUvX(mesh.uv, 1f);
 
             foreach (var normal in mesh.normals)
             {

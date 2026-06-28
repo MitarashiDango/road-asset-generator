@@ -20,6 +20,7 @@ RoadSegment のプロファイルと Surface Style はテンプレートから�
 - 二重線は 2 本のストロークと `strokeSpacingMeters` から生成します。`strokeSpacingMeters` は、2 本の線の内側エッジ間の隙間として扱います。
 - 区画線マテリアルは、Network の `markingMaterial` が指定されていれば複製して使い、ストロークの色を適用します。未指定の場合は、現在の Built-in / URP に合わせたパッケージ標準の Lit シェーダを優先して使い、シーンのライト、影、GI、Light Probe、Reflection Probe の影響を受けます。URP package がないプロジェクトでも import エラーにならないよう、URP 標準シェーダには互換 fallback も含めています。
 - 区画線は RoadNetwork Inspector の `Marking Surface Offset Meters` だけ路面から浮かせ、標準シェーダでは深度バイアスも使います。路面に埋まって見える場合は、この offset を少し大きくしてください。
+- 路面メッシュは進行方向の `Max Surface Sample Length Meters` / `Max Surface Sample Angle Degrees` と、幅方向の `Max Surface Column Width Meters` で分割密度を調整できます。`Max Surface Column Width Meters` を小さくすると、カーブ路面で大きなポリゴン形状が模様として目立つ問題を減らしやすくなりますが、頂点数、MeshCollider、再生成コストは増えます。RoadSegment Inspector の `Override Surface Sampling` を使うと、必要な Segment だけ分割密度を上げられます。
 - 生成 GameObject の Unity Layer は、RoadNetwork Inspector の `Default Surface Layer` / `Default Marking Layer` を既定値として使います。
   RoadSegment Inspector の `Override Surface Layer` / `Override Marking Layer` を使うと、路面と区画線を個別に Segment 値へ切り替えられます。
   Layer 変更は既存の `Surfaces` / `Markings` 配下にも反映され、再生成後も同じ実効値が使われます。既存の `Markings` 参照を修復した場合も、生成済み区画線 Renderer は現在の影・Probe 設定へ補修されます。
@@ -41,7 +42,7 @@ RoadSegment のプロファイルと Surface Style はテンプレートから�
 
 ## スプラインとフレーム
 
-スプラインの評価には Runtime 側の `CatmullRomSpline` を使います。方式は centripetal Catmull-Rom です。フレームは World Y を基準に横方向を計算します。接線が鉛直に近く、World Y から横方向を作れない場合は、World Z、World X、最後に接線と最も揃っていない軸へ順にフォールバックします。
+スプラインの評価には Runtime 側の `CatmullRomSpline` を使います。方式は centripetal Catmull-Rom です。フレームは World Y を基準に横方向を計算します。接線が鉛直に近く、World Y から横方向を作れない場合は、World Z、World X、最後に接線と最も揃っていない軸へ順にフォールバックします。路面 UV は U が道路全幅の 0〜1、V が進行方向距離 / `textureLengthMeters` です。幅方向に列分割してもこの UV の意味は変わりません。
 
 制御点は RoadSegment ローカル座標です。高低差を持つ制御点も利用できますが、バンクは MVP では生成しません。路面 Collider は表示用の路面 Mesh と同じ形状で生成されます。区画線メッシュには Unity の secondary UV unwrap で静的ライトマップ用の UV2 を生成しますが、路面メッシュの Lightmap UV2 は未生成です。
 

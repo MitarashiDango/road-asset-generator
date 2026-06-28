@@ -10,6 +10,7 @@
 - SceneView の制御点編集、Shift + クリックでの制御点追加、プレビュー再生成に対応
 - 生成 GameObject の Surface / Marking Layer override、Built-in / URP 向け区画線シェーダ、ローカル確認用サンプルを追加
 - 路面 MeshCollider の既定生成と Network / Segment 単位の有効化切り替えを追加
+- カーブ路面のポリゴン形状露出を抑えるため、路面メッシュの幅方向分割設定を追加
 
 ## [1.2.0] - 2026-06-01
 

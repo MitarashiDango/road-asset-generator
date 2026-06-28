@@ -3,6 +3,48 @@ using UnityEngine;
 
 namespace MitarashiDango.RoadAssetGenerator
 {
+    /// <summary>路面と区画線のサンプリング設定解決。</summary>
+    public static class RoadSurfaceSamplingSettings
+    {
+        public const float MinimumSampleLengthMeters = 0.25f;
+        public const float DefaultMaxSampleLengthMeters = 1f;
+        public const float MinimumSampleAngleDegrees = 1f;
+        public const float MaximumSampleAngleDegrees = 45f;
+        public const float DefaultMaxSampleAngleDegrees = 4f;
+        public const float MinimumColumnWidthMeters = 0.25f;
+        public const float DefaultMaxColumnWidthMeters = 1.5f;
+
+        public static float ResolveMaxSampleLengthMeters(RoadSegment segment, RoadNetwork network)
+        {
+            var value = segment != null && segment.overrideSurfaceSamplingSettings
+                ? segment.maxSurfaceSampleLengthMeters
+                : network != null
+                    ? network.maxSurfaceSampleLengthMeters
+                    : DefaultMaxSampleLengthMeters;
+            return Mathf.Max(MinimumSampleLengthMeters, value);
+        }
+
+        public static float ResolveMaxSampleAngleDegrees(RoadSegment segment, RoadNetwork network)
+        {
+            var value = segment != null && segment.overrideSurfaceSamplingSettings
+                ? segment.maxSurfaceSampleAngleDegrees
+                : network != null
+                    ? network.maxSurfaceSampleAngleDegrees
+                    : DefaultMaxSampleAngleDegrees;
+            return Mathf.Clamp(value, MinimumSampleAngleDegrees, MaximumSampleAngleDegrees);
+        }
+
+        public static float ResolveMaxColumnWidthMeters(RoadSegment segment, RoadNetwork network)
+        {
+            var value = segment != null && segment.overrideSurfaceSamplingSettings
+                ? segment.maxSurfaceColumnWidthMeters
+                : network != null
+                    ? network.maxSurfaceColumnWidthMeters
+                    : DefaultMaxColumnWidthMeters;
+            return Mathf.Max(MinimumColumnWidthMeters, value);
+        }
+    }
+
     /// <summary>
     /// 道路ネットワーク生成機能のルート。MVP では配下の <see cref="RoadSegment"/> のみ生成対象となる。
     /// </summary>
@@ -13,8 +55,12 @@ namespace MitarashiDango.RoadAssetGenerator
         [Min(1f)] public float meshSegmentLengthMeters = 100f;
         [Tooltip("Distance in meters to lift generated road markings from the road surface along the road normal.")]
         [Min(0f)] public float markingVertexOffsetMeters = 0.005f;
-        [Min(0.25f)] public float maxSurfaceSampleLengthMeters = 1f;
-        [Range(1f, 45f)] public float maxSurfaceSampleAngleDegrees = 4f;
+        [Min(RoadSurfaceSamplingSettings.MinimumSampleLengthMeters)]
+        public float maxSurfaceSampleLengthMeters = RoadSurfaceSamplingSettings.DefaultMaxSampleLengthMeters;
+        [Range(RoadSurfaceSamplingSettings.MinimumSampleAngleDegrees, RoadSurfaceSamplingSettings.MaximumSampleAngleDegrees)]
+        public float maxSurfaceSampleAngleDegrees = RoadSurfaceSamplingSettings.DefaultMaxSampleAngleDegrees;
+        [Min(RoadSurfaceSamplingSettings.MinimumColumnWidthMeters)]
+        public float maxSurfaceColumnWidthMeters = RoadSurfaceSamplingSettings.DefaultMaxColumnWidthMeters;
         public bool generateSurfaceColliders = true;
         [Range(0, 31)] public int defaultGeneratedSurfaceLayer;
         [Range(0, 31)] public int defaultGeneratedMarkingLayer;

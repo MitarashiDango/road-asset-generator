@@ -19,10 +19,31 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
 
                 Assert.That(network.maxSurfaceSampleLengthMeters, Is.EqualTo(1f).Within(0.001f));
                 Assert.That(network.maxSurfaceSampleAngleDegrees, Is.EqualTo(4f).Within(0.001f));
+                Assert.That(network.maxSurfaceColumnWidthMeters, Is.EqualTo(1.5f).Within(0.001f));
             }
             finally
             {
                 Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void RoadSegmentDefaultsUseFinerSurfaceSampling()
+        {
+            var segmentObject = new GameObject("RoadSegment_Default_Sampling_Test");
+
+            try
+            {
+                var segment = segmentObject.AddComponent<RoadSegment>();
+
+                Assert.That(segment.overrideSurfaceSamplingSettings, Is.False);
+                Assert.That(segment.maxSurfaceSampleLengthMeters, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(segment.maxSurfaceSampleAngleDegrees, Is.EqualTo(4f).Within(0.001f));
+                Assert.That(segment.maxSurfaceColumnWidthMeters, Is.EqualTo(1.5f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(segmentObject);
             }
         }
 
@@ -93,13 +114,18 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
                 var mesh = meshes[0].mesh;
                 var vertices = mesh.vertices;
                 var uvs = mesh.uv;
+                const int verticesPerRow = 6;
 
+                Assert.That(mesh.vertexCount, Is.EqualTo(5 * verticesPerRow));
                 Assert.That(vertices[0].x, Is.EqualTo(-3.75f).Within(0.001f));
-                Assert.That(vertices[1].x, Is.EqualTo(3.75f).Within(0.001f));
+                Assert.That(vertices[1].x, Is.EqualTo(-2.25f).Within(0.001f));
+                Assert.That(vertices[verticesPerRow - 1].x, Is.EqualTo(3.75f).Within(0.001f));
                 Assert.That(uvs[0].x, Is.EqualTo(0f).Within(0.001f));
                 Assert.That(uvs[0].y, Is.EqualTo(0f).Within(0.001f));
-                Assert.That(uvs[1].x, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(uvs[1].x, Is.EqualTo(0.2f).Within(0.001f));
                 Assert.That(uvs[1].y, Is.EqualTo(0f).Within(0.001f));
+                Assert.That(uvs[verticesPerRow - 1].x, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(uvs[verticesPerRow - 1].y, Is.EqualTo(0f).Within(0.001f));
                 Assert.That(uvs[uvs.Length - 1].y, Is.EqualTo(2f).Within(0.001f));
 
                 foreach (var normal in mesh.normals)
@@ -117,6 +143,50 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             finally
             {
                 DestroyMeshes(meshes);
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void SmallerSurfaceColumnWidthIncreasesSurfaceVertexCount()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Column_Test");
+            var segmentObject = new GameObject("RoadSegment_Surface_Column_Test");
+            var coarseMeshes = new List<RoadSurfaceMeshData>();
+            var fineMeshes = new List<RoadSurfaceMeshData>();
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.meshSegmentLengthMeters = 100f;
+                network.maxSurfaceSampleLengthMeters = 5f;
+                network.maxSurfaceColumnWidthMeters = 10f;
+
+                segmentObject.transform.SetParent(networkObject.transform, false);
+                var segment = segmentObject.AddComponent<RoadSegment>();
+                segment.controlPoints = new[]
+                {
+                    new SplinePoint(new Vector3(0f, 0f, 0f)),
+                    new SplinePoint(new Vector3(0f, 0f, 20f)),
+                };
+                segment.profileKeys = new[]
+                {
+                    new RoadProfileKey { profile = RoadProfile.CreateDefaultTwoLane() },
+                };
+
+                coarseMeshes = RoadSurfaceMeshBuilder.Build(segment, network);
+
+                network.maxSurfaceColumnWidthMeters = 1.5f;
+                fineMeshes = RoadSurfaceMeshBuilder.Build(segment, network);
+
+                Assert.That(coarseMeshes, Has.Count.EqualTo(1));
+                Assert.That(fineMeshes, Has.Count.EqualTo(1));
+                Assert.That(fineMeshes[0].mesh.vertexCount, Is.GreaterThan(coarseMeshes[0].mesh.vertexCount));
+            }
+            finally
+            {
+                DestroyMeshes(coarseMeshes);
+                DestroyMeshes(fineMeshes);
                 Object.DestroyImmediate(networkObject);
             }
         }
@@ -536,6 +606,47 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
         }
 
         [Test]
+        public void DenseColumnSurfaceMeshesStayWithinVertexLimit()
+        {
+            var networkObject = new GameObject("RoadNetwork_Dense_Column_Limit_Test");
+            var segmentObject = new GameObject("RoadSegment_Dense_Column_Limit_Test");
+            var meshes = new List<RoadSurfaceMeshData>();
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.meshSegmentLengthMeters = 100000f;
+                network.maxSurfaceSampleLengthMeters = 0.25f;
+                network.maxSurfaceColumnWidthMeters = 0.25f;
+
+                segmentObject.transform.SetParent(networkObject.transform, false);
+                var segment = segmentObject.AddComponent<RoadSegment>();
+                segment.controlPoints = new[]
+                {
+                    new SplinePoint(new Vector3(0f, 0f, 0f)),
+                    new SplinePoint(new Vector3(0f, 0f, 2000f)),
+                };
+                segment.profileKeys = new[]
+                {
+                    new RoadProfileKey { profile = RoadProfile.CreateDefaultTwoLane() },
+                };
+
+                meshes = RoadSurfaceMeshBuilder.Build(segment, network);
+
+                Assert.That(meshes, Has.Count.GreaterThan(1));
+                foreach (var meshData in meshes)
+                {
+                    Assert.That(meshData.mesh.vertexCount, Is.LessThanOrEqualTo(RoadSurfaceMeshBuilder.MaxVerticesPerMesh));
+                }
+            }
+            finally
+            {
+                DestroyMeshes(meshes);
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
         public void DenseSamplesDoNotCreateExtraChunksBeforeNextSplit()
         {
             var networkObject = new GameObject("RoadNetwork_Dense_Split_Test");
@@ -618,6 +729,54 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
         }
 
         [Test]
+        public void SegmentSurfaceColumnWidthOverrideTakesPriorityOverNetworkSettings()
+        {
+            var networkObject = new GameObject("RoadNetwork_Column_Override_Test");
+            var segmentObject = new GameObject("RoadSegment_Column_Override_Test");
+            var coarseMeshes = new List<RoadSurfaceMeshData>();
+            var fineMeshes = new List<RoadSurfaceMeshData>();
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.meshSegmentLengthMeters = 100f;
+                network.maxSurfaceSampleLengthMeters = 5f;
+                network.maxSurfaceSampleAngleDegrees = 4f;
+                network.maxSurfaceColumnWidthMeters = 10f;
+
+                segmentObject.transform.SetParent(networkObject.transform, false);
+                var segment = segmentObject.AddComponent<RoadSegment>();
+                segment.controlPoints = new[]
+                {
+                    new SplinePoint(new Vector3(0f, 0f, 0f)),
+                    new SplinePoint(new Vector3(0f, 0f, 20f)),
+                };
+                segment.profileKeys = new[]
+                {
+                    new RoadProfileKey { profile = RoadProfile.CreateDefaultTwoLane() },
+                };
+
+                coarseMeshes = RoadSurfaceMeshBuilder.Build(segment, network);
+
+                segment.overrideSurfaceSamplingSettings = true;
+                segment.maxSurfaceSampleLengthMeters = 5f;
+                segment.maxSurfaceSampleAngleDegrees = 4f;
+                segment.maxSurfaceColumnWidthMeters = 1.5f;
+                fineMeshes = RoadSurfaceMeshBuilder.Build(segment, network);
+
+                Assert.That(coarseMeshes, Has.Count.EqualTo(1));
+                Assert.That(fineMeshes, Has.Count.EqualTo(1));
+                Assert.That(fineMeshes[0].mesh.vertexCount, Is.GreaterThan(coarseMeshes[0].mesh.vertexCount));
+            }
+            finally
+            {
+                DestroyMeshes(coarseMeshes);
+                DestroyMeshes(fineMeshes);
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
         public void SegmentSurfaceSamplingOverrideTakesPriorityOverNetworkSettings()
         {
             var networkObject = new GameObject("RoadNetwork_Sampling_Override_Test");
@@ -694,7 +853,7 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
                 Assert.That(meshes, Has.Count.EqualTo(1));
                 var mesh = meshes[0].mesh;
                 var leftWorld = segmentObject.transform.TransformPoint(mesh.vertices[0]);
-                var rightWorld = segmentObject.transform.TransformPoint(mesh.vertices[1]);
+                var rightWorld = segmentObject.transform.TransformPoint(mesh.vertices[5]);
                 var normalWorld = segmentObject.transform.TransformDirection(mesh.normals[0]);
 
                 Assert.That(leftWorld.y, Is.EqualTo(0f).Within(0.001f));
@@ -907,6 +1066,46 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
                 RoadNetworkPreviewScheduler.FlushForTests();
                 Assert.That(network.generateSurfaceColliders, Is.False);
                 AssertGeneratedSurfaceColliderState(segment, false);
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void SurfaceColumnWidthSettingUndoRedoKeepsPreviewInSync()
+        {
+            var networkObject = new GameObject("RoadNetwork_Surface_Column_Undo_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.maxSurfaceColumnWidthMeters = 10f;
+                var segment = CreateSegment(network, "RoadSegment_Surface_Column_Undo_Test", 0f);
+                RoadNetworkPreviewScheduler.Schedule(segment);
+                RoadNetworkPreviewScheduler.FlushForTests();
+                var coarseVertexCount = GetSurfaceMesh(segment).vertexCount;
+
+                Undo.IncrementCurrentGroup();
+                Undo.SetCurrentGroupName("Edit Road Surface Column Width");
+                RoadSegmentSurfaceGenerator.RegisterGeneratedHierarchyUndo(segment, "Edit Road Surface Column Width");
+                Undo.RecordObject(network, "Edit Road Surface Column Width");
+                network.maxSurfaceColumnWidthMeters = 1.5f;
+                RoadNetworkPreviewScheduler.Schedule(network, true);
+                Undo.IncrementCurrentGroup();
+                RoadNetworkPreviewScheduler.FlushForTests();
+                Assert.That(GetSurfaceMesh(segment).vertexCount, Is.GreaterThan(coarseVertexCount));
+
+                Undo.PerformUndo();
+                RoadNetworkPreviewScheduler.FlushForTests();
+                Assert.That(network.maxSurfaceColumnWidthMeters, Is.EqualTo(10f).Within(0.001f));
+                Assert.That(GetSurfaceMesh(segment).vertexCount, Is.EqualTo(coarseVertexCount));
+
+                Undo.PerformRedo();
+                RoadNetworkPreviewScheduler.FlushForTests();
+                Assert.That(network.maxSurfaceColumnWidthMeters, Is.EqualTo(1.5f).Within(0.001f));
+                Assert.That(GetSurfaceMesh(segment).vertexCount, Is.GreaterThan(coarseVertexCount));
             }
             finally
             {

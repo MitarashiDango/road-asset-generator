@@ -223,13 +223,15 @@ namespace MitarashiDango.RoadAssetGenerator
             hash = hash * 31 + (usesSegmentOverride ? 1 : 0);
             if (usesSegmentOverride)
             {
-                AddFloatHash(segment.maxSurfaceSampleLengthMeters, ref hash);
-                AddFloatHash(segment.maxSurfaceSampleAngleDegrees, ref hash);
+                AddFloatHash(RoadSurfaceSamplingSettings.ResolveMaxSampleLengthMeters(segment, network), ref hash);
+                AddFloatHash(RoadSurfaceSamplingSettings.ResolveMaxSampleAngleDegrees(segment, network), ref hash);
+                AddFloatHash(RoadSurfaceSamplingSettings.ResolveMaxColumnWidthMeters(segment, network), ref hash);
                 return;
             }
 
-            AddFloatHash(network != null ? network.maxSurfaceSampleLengthMeters : 1f, ref hash);
-            AddFloatHash(network != null ? network.maxSurfaceSampleAngleDegrees : 4f, ref hash);
+            AddFloatHash(RoadSurfaceSamplingSettings.ResolveMaxSampleLengthMeters(null, network), ref hash);
+            AddFloatHash(RoadSurfaceSamplingSettings.ResolveMaxSampleAngleDegrees(null, network), ref hash);
+            AddFloatHash(RoadSurfaceSamplingSettings.ResolveMaxColumnWidthMeters(null, network), ref hash);
         }
 
         private static void AddGeneratedLayerHash(RoadSegment segment, RoadNetwork network, ref int hash)

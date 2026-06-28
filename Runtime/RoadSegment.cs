@@ -27,8 +27,12 @@ namespace MitarashiDango.RoadAssetGenerator
         public RoadSegmentConnection endConnection = new RoadSegmentConnection();
 
         public bool overrideSurfaceSamplingSettings;
-        [Min(0.25f)] public float maxSurfaceSampleLengthMeters = 1f;
-        [Range(1f, 45f)] public float maxSurfaceSampleAngleDegrees = 4f;
+        [Min(RoadSurfaceSamplingSettings.MinimumSampleLengthMeters)]
+        public float maxSurfaceSampleLengthMeters = RoadSurfaceSamplingSettings.DefaultMaxSampleLengthMeters;
+        [Range(RoadSurfaceSamplingSettings.MinimumSampleAngleDegrees, RoadSurfaceSamplingSettings.MaximumSampleAngleDegrees)]
+        public float maxSurfaceSampleAngleDegrees = RoadSurfaceSamplingSettings.DefaultMaxSampleAngleDegrees;
+        [Min(RoadSurfaceSamplingSettings.MinimumColumnWidthMeters)]
+        public float maxSurfaceColumnWidthMeters = RoadSurfaceSamplingSettings.DefaultMaxColumnWidthMeters;
         public bool overrideSurfaceColliderSettings;
         public bool generateSurfaceColliders = true;
         public bool overrideGeneratedSurfaceLayer;

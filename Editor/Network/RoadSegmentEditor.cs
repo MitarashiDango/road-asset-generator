@@ -27,6 +27,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 "overrideSurfaceSamplingSettings",
                 "maxSurfaceSampleLengthMeters",
                 "maxSurfaceSampleAngleDegrees",
+                "maxSurfaceColumnWidthMeters",
                 "overrideSurfaceColliderSettings",
                 "generateSurfaceColliders",
                 "overrideGeneratedSurfaceLayer",
@@ -89,6 +90,7 @@ namespace MitarashiDango.RoadAssetGenerator
             var overrideProperty = serializedObject.FindProperty("overrideSurfaceSamplingSettings");
             var lengthProperty = serializedObject.FindProperty("maxSurfaceSampleLengthMeters");
             var angleProperty = serializedObject.FindProperty("maxSurfaceSampleAngleDegrees");
+            var columnWidthProperty = serializedObject.FindProperty("maxSurfaceColumnWidthMeters");
 
             EditorGUILayout.PropertyField(overrideProperty, new GUIContent("Override Surface Sampling"));
             var enabled = overrideProperty.hasMultipleDifferentValues || overrideProperty.boolValue;
@@ -96,6 +98,7 @@ namespace MitarashiDango.RoadAssetGenerator
             {
                 EditorGUILayout.PropertyField(lengthProperty, new GUIContent("Max Surface Sample Length Meters"));
                 EditorGUILayout.PropertyField(angleProperty, new GUIContent("Max Surface Sample Angle Degrees"));
+                EditorGUILayout.PropertyField(columnWidthProperty, new GUIContent("Max Surface Column Width Meters"));
             }
         }
 

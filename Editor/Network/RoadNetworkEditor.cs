@@ -73,6 +73,9 @@ namespace MitarashiDango.RoadAssetGenerator
             EditorGUILayout.PropertyField(serializedObject.FindProperty("maxSurfaceSampleLengthMeters"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("maxSurfaceSampleAngleDegrees"));
             EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("maxSurfaceColumnWidthMeters"),
+                new GUIContent("Max Surface Column Width Meters"));
+            EditorGUILayout.PropertyField(
                 serializedObject.FindProperty("generateSurfaceColliders"),
                 new GUIContent("Generate Surface Colliders"));
         }
