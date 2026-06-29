@@ -7,7 +7,7 @@
 - RoadNetwork / RoadSegment による道路ネットワーク生成を追加
 - Catmull-Rom スプラインから路面メッシュと区画線メッシュを生成する Editor 機能を追加
 - RoadSurfaceStyle / RoadSurfaceStyleAsset による Segment 単位の路面スタイルを追加
-- SceneView の制御点編集、Shift + クリックでの制御点追加、プレビュー再生成に対応
+- SceneView の制御点選択、選択点のみの PositionHandle、中間挿入、先頭 / 末尾追加、削除、右クリックメニュー、Shift + クリックでの末尾追加、プレビュー再生成に対応
 - 生成 GameObject の Surface / Marking Layer override、Built-in / URP 向け区画線シェーダ、ローカル確認用サンプルを追加
 - 路面 MeshCollider の既定生成と Network / Segment 単位の有効化切り替えを追加
 - カーブ路面のポリゴン形状露出を抑えるため、路面メッシュの幅方向分割設定を追加

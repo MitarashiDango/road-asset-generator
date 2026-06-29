@@ -979,6 +979,199 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
         }
 
         [Test]
+        public void EditorPrependControlPointPathRegeneratesPreview()
+        {
+            var networkObject = new GameObject("RoadNetwork_Prepend_Point_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                var segment = CreateSegment(network, "RoadSegment_Prepend_Point_Test", 0f);
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(2));
+                AssertSurfaceEndV(segment, 2f);
+
+                Assert.That(InvokePrependControlPoint(segment), Is.True);
+                RoadNetworkPreviewScheduler.FlushForTests();
+
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(3));
+                Assert.That(segment.controlPoints[0].position.z, Is.EqualTo(-20f).Within(0.001f));
+                Assert.That(segment.controlPoints[1].position.z, Is.EqualTo(0f).Within(0.001f));
+                AssertSurfaceEndV(segment, 4f);
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void EditorInsertControlPointPathRegeneratesPreviewAndMaintainsOrder()
+        {
+            var networkObject = new GameObject("RoadNetwork_Insert_Point_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                var segment = CreateSegment(network, "RoadSegment_Insert_Point_Test", 0f);
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+                var initialMesh = GetSurfaceMesh(segment);
+
+                Assert.That(InvokeInsertControlPoint(segment, 1, new Vector3(0f, 0f, 10f)), Is.True);
+                RoadNetworkPreviewScheduler.FlushForTests();
+
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(3));
+                Assert.That(segment.controlPoints[0].position.z, Is.EqualTo(0f).Within(0.001f));
+                Assert.That(segment.controlPoints[1].position.z, Is.EqualTo(10f).Within(0.001f));
+                Assert.That(segment.controlPoints[2].position.z, Is.EqualTo(20f).Within(0.001f));
+                Assert.That(GetSurfaceMesh(segment), Is.Not.SameAs(initialMesh));
+                AssertSurfaceEndV(segment, 2f);
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void EditorContextInsertHelpersRouteEndpointsAndMiddle()
+        {
+            var networkObject = new GameObject("RoadNetwork_Context_Insert_Point_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                var segment = CreateSegment(network, "RoadSegment_Context_Insert_Point_Test", 0f);
+
+                Assert.That(InvokeInsertBeforeControlPoint(segment, 0), Is.True);
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(3));
+                Assert.That(segment.controlPoints[0].position.z, Is.EqualTo(-20f).Within(0.001f));
+
+                Assert.That(InvokeInsertAfterControlPoint(segment, segment.controlPoints.Length - 1), Is.True);
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(4));
+                Assert.That(segment.controlPoints[3].position.z, Is.EqualTo(40f).Within(0.001f));
+
+                Assert.That(InvokeInsertAfterControlPoint(segment, 1), Is.True);
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(5));
+                Assert.That(segment.controlPoints[1].position.z, Is.EqualTo(0f).Within(0.001f));
+                Assert.That(segment.controlPoints[3].position.z, Is.EqualTo(20f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void ShapePreservingInsertImprovesCurveError()
+        {
+            Assert.That(GetRoadSegmentEditorConstInt("ShapePreserveSampleCount"), Is.EqualTo(9));
+            Assert.That(GetRoadSegmentEditorConstInt("ShapePreserveSearchIterations"), Is.EqualTo(4));
+            AssertShapePreservingInsertImprovesCurveError(
+                new[]
+                {
+                    new Vector3(0f, 0f, 0f),
+                    new Vector3(7f, 0f, 5f),
+                    new Vector3(-3f, 0f, 13f),
+                    new Vector3(-6f, 0f, 22f),
+                    new Vector3(1f, 0f, 30f),
+                },
+                2);
+            AssertShapePreservingInsertImprovesCurveError(
+                new[]
+                {
+                    new Vector3(8.518495f, -2.213856f, 4.485575f),
+                    new Vector3(-3.485542f, -2.004402f, 7.257394f),
+                    new Vector3(5.646785f, -0.175805f, 16.968733f),
+                    new Vector3(1.147944f, 2.018458f, 25.60554f),
+                },
+                2);
+        }
+
+        [Test]
+        public void EditorControlPointHelpersHandleNullEntries()
+        {
+            var segmentObject = new GameObject("RoadSegment_Null_Control_Point_Test");
+
+            try
+            {
+                var segment = segmentObject.AddComponent<RoadSegment>();
+                segment.controlPoints = new[]
+                {
+                    new SplinePoint(new Vector3(0f, 0f, 0f)),
+                    null,
+                    new SplinePoint(new Vector3(0f, 0f, 20f)),
+                };
+
+                var insertPosition = InvokeCalculateShapePreservingInsertPosition(segment, 2);
+                Assert.That(float.IsNaN(insertPosition.x), Is.False);
+                Assert.That(InvokeInsertControlPoint(segment, 2, insertPosition), Is.True);
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(4));
+                Assert.That(InvokeDeleteControlPoint(segment, 1), Is.True);
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(3));
+                Assert.That(InvokePrependControlPoint(segment), Is.True);
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(4));
+            }
+            finally
+            {
+                Object.DestroyImmediate(segmentObject);
+            }
+        }
+
+        [Test]
+        public void EditorDeleteControlPointPathRegeneratesPreviewAndGuardsEndpointConnections()
+        {
+            var networkObject = new GameObject("RoadNetwork_Delete_Point_Test");
+            var junctionObject = new GameObject("RoadJunction_Delete_Point_Test");
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                var segment = CreateSegment(network, "RoadSegment_Delete_Point_Test", 0f);
+                segment.controlPoints = new[]
+                {
+                    new SplinePoint(new Vector3(0f, 0f, 0f)),
+                    new SplinePoint(new Vector3(0f, 0f, 10f)),
+                    new SplinePoint(new Vector3(0f, 0f, 20f)),
+                    new SplinePoint(new Vector3(0f, 0f, 30f)),
+                };
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+                var initialMesh = GetSurfaceMesh(segment);
+
+                Assert.That(InvokeDeleteControlPoint(segment, 1), Is.True);
+                RoadNetworkPreviewScheduler.FlushForTests();
+
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(3));
+                Assert.That(segment.controlPoints[0].position.z, Is.EqualTo(0f).Within(0.001f));
+                Assert.That(segment.controlPoints[1].position.z, Is.EqualTo(20f).Within(0.001f));
+                Assert.That(segment.controlPoints[2].position.z, Is.EqualTo(30f).Within(0.001f));
+                Assert.That(GetSurfaceMesh(segment), Is.Not.SameAs(initialMesh));
+
+                var junction = junctionObject.AddComponent<IntersectionJunction>();
+                segment.startConnection = new RoadSegmentConnection { junction = junction, portIndex = 0 };
+                segment.endConnection = new RoadSegmentConnection { junction = junction, portIndex = 1 };
+
+                Assert.That(InvokeCanDeleteControlPoint(segment, 0), Is.False);
+                Assert.That(InvokeCanDeleteControlPoint(segment, segment.controlPoints.Length - 1), Is.False);
+                Assert.That(InvokeDeleteControlPoint(segment, 0), Is.False);
+                Assert.That(InvokeDeleteControlPoint(segment, segment.controlPoints.Length - 1), Is.False);
+                Assert.That(segment.controlPoints, Has.Length.EqualTo(3));
+
+                segment.controlPoints = new[]
+                {
+                    new SplinePoint(new Vector3(0f, 0f, 0f)),
+                    new SplinePoint(new Vector3(0f, 0f, 20f)),
+                };
+                Assert.That(InvokeDeleteControlPoint(segment, 1), Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+                Object.DestroyImmediate(junctionObject);
+            }
+        }
+
+        [Test]
         public void PreviewScheduleRegeneratesOnlyRequestedSegment()
         {
             var networkObject = new GameObject("RoadNetwork_Targeted_Preview_Test");
@@ -1243,6 +1436,163 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             var value = (bool)method.Invoke(editor, arguments);
             mixedValue = (bool)arguments[0];
             return value;
+        }
+
+        private static bool InvokePrependControlPoint(RoadSegment segment)
+        {
+            var method = GetRoadSegmentEditorStaticMethod(
+                "PrependControlPoint",
+                typeof(RoadSegment));
+            return (bool)method.Invoke(null, new object[] { segment });
+        }
+
+        private static bool InvokeInsertControlPoint(RoadSegment segment, int index, Vector3 position)
+        {
+            var method = GetRoadSegmentEditorStaticMethod(
+                "InsertControlPoint",
+                typeof(RoadSegment),
+                typeof(int),
+                typeof(Vector3));
+            return (bool)method.Invoke(null, new object[] { segment, index, position });
+        }
+
+        private static bool InvokeInsertBeforeControlPoint(RoadSegment segment, int index)
+        {
+            var method = GetRoadSegmentEditorStaticMethod(
+                "InsertBeforeControlPoint",
+                typeof(RoadSegment),
+                typeof(int));
+            return (bool)method.Invoke(null, new object[] { segment, index });
+        }
+
+        private static bool InvokeInsertAfterControlPoint(RoadSegment segment, int index)
+        {
+            var method = GetRoadSegmentEditorStaticMethod(
+                "InsertAfterControlPoint",
+                typeof(RoadSegment),
+                typeof(int));
+            return (bool)method.Invoke(null, new object[] { segment, index });
+        }
+
+        private static bool InvokeDeleteControlPoint(RoadSegment segment, int index)
+        {
+            var method = GetRoadSegmentEditorStaticMethod(
+                "DeleteControlPoint",
+                typeof(RoadSegment),
+                typeof(int));
+            return (bool)method.Invoke(null, new object[] { segment, index });
+        }
+
+        private static bool InvokeCanDeleteControlPoint(RoadSegment segment, int index)
+        {
+            var method = GetRoadSegmentEditorStaticMethod(
+                "CanDeleteControlPoint",
+                typeof(RoadSegment),
+                typeof(int));
+            return (bool)method.Invoke(null, new object[] { segment, index });
+        }
+
+        private static Vector3 InvokeCalculateShapePreservingInsertPosition(RoadSegment segment, int index)
+        {
+            var method = GetRoadSegmentEditorStaticMethod(
+                "CalculateShapePreservingInsertPosition",
+                typeof(RoadSegment),
+                typeof(int));
+            return (Vector3)method.Invoke(null, new object[] { segment, index });
+        }
+
+        private static float InvokeEvaluateInsertionShapeError(Vector3[] positions, int index, Vector3 candidate)
+        {
+            var method = GetRoadSegmentEditorStaticMethod(
+                "EvaluateInsertionShapeError",
+                typeof(Vector3[]),
+                typeof(int),
+                typeof(Vector3));
+            return (float)method.Invoke(null, new object[] { positions, index, candidate });
+        }
+
+        private static bool InvokeTryGetParameterMidpoint(Vector3[] positions, int index, out Vector3 midpoint)
+        {
+            var method = GetRoadSegmentEditorStaticMethod(
+                "TryGetParameterMidpoint",
+                typeof(Vector3[]),
+                typeof(int),
+                typeof(Vector3).MakeByRefType());
+            var args = new object[] { positions, index, Vector3.zero };
+            var result = (bool)method.Invoke(null, args);
+            midpoint = (Vector3)args[2];
+            return result;
+        }
+
+        private static bool InvokeTryGetArcLengthMidpoint(Vector3[] positions, int index, out Vector3 midpoint)
+        {
+            var method = GetRoadSegmentEditorStaticMethod(
+                "TryGetArcLengthMidpoint",
+                typeof(Vector3[]),
+                typeof(int),
+                typeof(Vector3).MakeByRefType());
+            var args = new object[] { positions, index, Vector3.zero };
+            var result = (bool)method.Invoke(null, args);
+            midpoint = (Vector3)args[2];
+            return result;
+        }
+
+        private static void AssertShapePreservingInsertImprovesCurveError(Vector3[] oldPositions, int insertIndex)
+        {
+            var segmentObject = new GameObject("RoadSegment_Shape_Insert_Test");
+
+            try
+            {
+                var segment = segmentObject.AddComponent<RoadSegment>();
+                segment.controlPoints = new SplinePoint[oldPositions.Length];
+                for (var i = 0; i < oldPositions.Length; i++)
+                {
+                    segment.controlPoints[i] = new SplinePoint(oldPositions[i]);
+                }
+
+                var optimized = InvokeCalculateShapePreservingInsertPosition(segment, insertIndex);
+                var chordMidpoint = (oldPositions[insertIndex - 1] + oldPositions[insertIndex]) * 0.5f;
+                var chordError = InvokeEvaluateInsertionShapeError(oldPositions, insertIndex, chordMidpoint);
+                var optimizedError = InvokeEvaluateInsertionShapeError(oldPositions, insertIndex, optimized);
+
+                Assert.That(optimizedError, Is.LessThanOrEqualTo(chordError + 0.0001f));
+                if (InvokeTryGetParameterMidpoint(oldPositions, insertIndex, out var parameterMidpoint))
+                {
+                    var parameterError = InvokeEvaluateInsertionShapeError(oldPositions, insertIndex, parameterMidpoint);
+                    Assert.That(optimizedError, Is.LessThanOrEqualTo(parameterError + 0.0001f));
+                }
+
+                if (InvokeTryGetArcLengthMidpoint(oldPositions, insertIndex, out var arcLengthMidpoint))
+                {
+                    var arcLengthError = InvokeEvaluateInsertionShapeError(oldPositions, insertIndex, arcLengthMidpoint);
+                    Assert.That(optimizedError, Is.LessThanOrEqualTo(arcLengthError + 0.0001f));
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(segmentObject);
+            }
+        }
+
+        private static int GetRoadSegmentEditorConstInt(string name)
+        {
+            var field = typeof(RoadSegmentEditor).GetField(
+                name,
+                BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(field, Is.Not.Null);
+            return (int)field.GetRawConstantValue();
+        }
+
+        private static MethodInfo GetRoadSegmentEditorStaticMethod(string name, params System.Type[] parameterTypes)
+        {
+            var method = typeof(RoadSegmentEditor).GetMethod(
+                name,
+                BindingFlags.NonPublic | BindingFlags.Static,
+                null,
+                parameterTypes,
+                null);
+            Assert.That(method, Is.Not.Null, name);
+            return method;
         }
 
         private static void AssertGeneratedSurfaceColliderState(RoadSegment segment, bool expectedCollider)

@@ -5,10 +5,12 @@
 ## 作成と編集
 
 1. `GameObject > Road Asset Generator > Road Network` または `Tools > Road Asset Generator > Create Road Network` を実行します。
-2. 作成された `RoadSegment` を選択し、SceneView のハンドルで制御点を移動します。
-3. Shift + クリックで制御点を末尾に追加します。コライダーにヒットしない場合は、最後の制御点を通る水平面へ投影されます。
-4. Inspector の `Profile Template` で `RoadProfileTemplateAsset` を選び、`Apply To First Profile Key` を実行します。
-5. `Road Generation` の `Regenerate Road` または RoadNetwork 側の `Regenerate All Roads` で路面と区画線を再生成します。
+2. 作成された `RoadSegment` を選択し、SceneView の球マーカーをクリックして制御点を選択します。移動用の `PositionHandle` は選択中の制御点にだけ表示されます。
+3. 制御点マーカーの右クリックメニューから `Insert Before` / `Insert After` / `Delete Point` / `Frame Selected` を実行できます。先頭点の `Insert Before` と末尾点の `Insert After` は端点追加として扱い、中間挿入では弧長ベースの評価で既存曲線にできるだけ近い位置へ配置します。
+4. Inspector の `Prepend Point` / `Append Point` でも端点を追加できます。従来の Shift + クリックによる末尾追加も利用できます。
+5. 選択点は Inspector の `Delete Selected Point`、または SceneView の Delete / Backspace でも削除できます。
+6. Inspector の `Profile Template` で `RoadProfileTemplateAsset` を選び、`Apply To First Profile Key` を実行します。
+7. `Road Generation` の `Regenerate Road` または RoadNetwork 側の `Regenerate All Roads` で路面と区画線を再生成します。
 
 RoadSegment のプロファイルと Surface Style はテンプレートからコピーされます。テンプレートアセットを後から編集しても、適用済みの道路区間には自動反映されません。Network の Material / Texture Length は、Segment 側の Surface Style が未設定の古いシーン向け fallback として扱います。
 
@@ -44,7 +46,7 @@ RoadSegment のプロファイルと Surface Style はテンプレートから�
 
 スプラインの評価には Runtime 側の `CatmullRomSpline` を使います。方式は centripetal Catmull-Rom です。フレームは World Y を基準に横方向を計算します。接線が鉛直に近く、World Y から横方向を作れない場合は、World Z、World X、最後に接線と最も揃っていない軸へ順にフォールバックします。路面 UV は U が道路全幅の 0〜1、V が進行方向距離 / `textureLengthMeters` です。幅方向に列分割してもこの UV の意味は変わりません。
 
-制御点は RoadSegment ローカル座標です。高低差を持つ制御点も利用できますが、バンクは MVP では生成しません。路面 Collider は表示用の路面 Mesh と同じ形状で生成されます。区画線メッシュには Unity の secondary UV unwrap で静的ライトマップ用の UV2 を生成しますが、路面メッシュの Lightmap UV2 は未生成です。
+制御点は RoadSegment ローカル座標です。高低差を持つ制御点も利用できますが、バンクは MVP では生成しません。制御点は 2 点未満にならないよう保護され、Junction に接続済みの先頭 / 末尾制御点は削除できません。路面 Collider は表示用の路面 Mesh と同じ形状で生成されます。区画線メッシュには Unity の secondary UV unwrap で静的ライトマップ用の UV2 を生成しますが、路面メッシュの Lightmap UV2 は未生成です。
 
 ## ライティングとベイク
 

@@ -11,7 +11,7 @@
 - 日本仕様の代表的な構成を含む 6 種のクイックプリセット
 - 任意の `RoadConfigAsset` を作成することで、自作プリセットとして保存・再利用可能
 - `RoadNetwork` / `RoadSegment` から路面メッシュと区画線メッシュを生成
-- SceneView の制御点編集、Segment 単位の Surface Style、生成 GameObject の Layer override に対応
+- SceneView の制御点選択、移動、挿入、先頭 / 末尾追加、削除、Segment 単位の Surface Style、生成 GameObject の Layer override に対応
 - 路面 MeshCollider の既定生成と、Network / Segment 単位の有効化切り替えに対応
 
 ## インストール
@@ -61,10 +61,10 @@ VRChat Creator Companion (VCC) を使っている環境では、VPM リポジト
 ### 道路ネットワークを作成する
 
 1. `GameObject > Road Asset Generator > Road Network` で道路ネットワークを作成
-2. 作成された `RoadSegment` を選択し、SceneView で制御点を編集
+2. 作成された `RoadSegment` を選択し、SceneView で制御点を選択、移動、挿入、削除
 3. `Regenerate Road` または `Regenerate All Roads` で路面と区画線を再生成
 
-詳しい手順は [Documentation~/road-network.md](./Documentation~/road-network.md) を参照してください。
+詳しい手順は [Documents~/road-network.md](./Documents~/road-network.md) を参照してください。
 
 ## ドキュメント
 
@@ -72,7 +72,7 @@ VRChat Creator Companion (VCC) を使っている環境では、VPM リポジト
 - [ウィンドウリファレンス](./Documents~/window-reference.md)(全パラメータ解説)
 - [プリセットと出力](./Documents~/presets-and-output.md)
 - [上級者向けトピック](./Documents~/advanced.md)
-- [道路ネットワーク生成](./Documentation~/road-network.md)
+- [道路ネットワーク生成](./Documents~/road-network.md)
 - [開発者向け: ベイカー構成](./Documents~/dev-baker-architecture.md)
 - [開発者向け: 路面標示の追加](./Documents~/dev-adding-markings.md)
 - [開発者向け: 図形プリミティブの追加](./Documents~/dev-adding-shapes.md)

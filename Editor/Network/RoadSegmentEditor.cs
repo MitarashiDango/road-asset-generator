@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -10,8 +11,43 @@ namespace MitarashiDango.RoadAssetGenerator
     [CanEditMultipleObjects]
     public class RoadSegmentEditor : Editor
     {
+        private const int ShapePreserveSampleCount = 9;
+        private const int ShapePreserveSearchIterations = 4;
+        private const int ShapePreserveArcLengthSamplesPerSegment = 24;
+        private const int DistanceAtParameterSearchIterations = 18;
+        private const float ControlPointMarkerSize = 0.12f;
+        private const float SelectedControlPointMarkerSize = 0.16f;
+        private const float ControlPointMarkerMinWorldSize = 0.18f;
+        private const float SelectedControlPointMarkerMinWorldSize = 0.24f;
+        private const float MarkerPickScale = 1.8f;
+
+        private static readonly Dictionary<int, int> SelectedControlPointIndices = new Dictionary<int, int>();
+        private static readonly Vector3[] ShapePreserveSearchDirections =
+        {
+            Vector3.right,
+            Vector3.left,
+            Vector3.up,
+            Vector3.down,
+            Vector3.forward,
+            Vector3.back,
+        };
+
         private RoadProfileTemplateAsset templateToApply;
         private RoadSurfaceStyleAsset surfaceStyleToApply;
+
+        private enum MarkerClickKind
+        {
+            None,
+            Primary,
+            Context,
+        }
+
+        static RoadSegmentEditor()
+        {
+            Selection.selectionChanged += CleanupStaleSelectedControlPointEntries;
+            EditorApplication.hierarchyChanged += CleanupStaleSelectedControlPointEntries;
+            Undo.undoRedoPerformed += HandleUndoRedo;
+        }
 
         public override void OnInspectorGUI()
         {
@@ -208,7 +244,10 @@ namespace MitarashiDango.RoadAssetGenerator
 
             DrawSplinePreview(segment);
             DrawValidationWarnings(segment);
-            DrawControlPointHandles(segment);
+            NormalizeSelectedControlPointIndex(segment);
+            DrawControlPointMarkers(segment);
+            DrawSelectedControlPointHandle(segment);
+            HandleControlPointDeleteKey(segment);
             HandleShiftClickAppend(segment);
         }
 
@@ -239,6 +278,14 @@ namespace MitarashiDango.RoadAssetGenerator
             EditorGUILayout.LabelField("Control Points", EditorStyles.boldLabel);
             using (new EditorGUILayout.HorizontalScope())
             {
+                if (GUILayout.Button("Prepend Point"))
+                {
+                    foreach (var selectedTarget in targets)
+                    {
+                        PrependControlPoint((RoadSegment)selectedTarget);
+                    }
+                }
+
                 if (GUILayout.Button("Append Point"))
                 {
                     foreach (var selectedTarget in targets)
@@ -251,7 +298,9 @@ namespace MitarashiDango.RoadAssetGenerator
                 foreach (var selectedTarget in targets)
                 {
                     var segment = (RoadSegment)selectedTarget;
-                    canDelete &= segment.controlPoints != null && segment.controlPoints.Length > 2;
+                    canDelete &= segment.controlPoints != null &&
+                        segment.controlPoints.Length > 0 &&
+                        CanDeleteControlPoint(segment, segment.controlPoints.Length - 1);
                 }
 
                 using (new EditorGUI.DisabledScope(!canDelete))
@@ -263,6 +312,24 @@ namespace MitarashiDango.RoadAssetGenerator
                             DeleteLastControlPoint((RoadSegment)selectedTarget);
                         }
                     }
+                }
+            }
+
+            if (targets.Length != 1)
+            {
+                return;
+            }
+
+            var segmentTarget = target as RoadSegment;
+            var hasSelectedPoint = HasSelectedControlPoint(segmentTarget, out var selectedIndex);
+            EditorGUILayout.LabelField(
+                "Selected Point",
+                hasSelectedPoint ? selectedIndex.ToString() : "None");
+            using (new EditorGUI.DisabledScope(!hasSelectedPoint || !CanDeleteControlPoint(segmentTarget, selectedIndex)))
+            {
+                if (GUILayout.Button("Delete Selected Point"))
+                {
+                    DeleteControlPoint(segmentTarget, selectedIndex);
                 }
             }
         }
@@ -384,7 +451,7 @@ namespace MitarashiDango.RoadAssetGenerator
             }
         }
 
-        private static void DrawControlPointHandles(RoadSegment segment)
+        private static void DrawControlPointMarkers(RoadSegment segment)
         {
             var points = segment.controlPoints;
             if (points == null)
@@ -392,36 +459,238 @@ namespace MitarashiDango.RoadAssetGenerator
                 return;
             }
 
+            HasSelectedControlPoint(segment, out var selectedIndex);
             for (var i = 0; i < points.Length; i++)
             {
-                if (points[i] == null)
-                {
-                    points[i] = new SplinePoint();
-                }
-
-                var worldPosition = segment.transform.TransformPoint(points[i].position);
-                Handles.color = Color.cyan;
-                var size = HandleUtility.GetHandleSize(worldPosition) * 0.08f;
+                var worldPosition = segment.transform.TransformPoint(
+                    GetControlPointPositionOrDefault(points, i, Vector3.zero));
+                var selected = i == selectedIndex;
+                var size = CalculateControlPointMarkerSize(worldPosition, selected);
+                var oldColor = Handles.color;
+                Handles.color = selected
+                    ? new Color(1f, 0.75f, 0.15f, 0.95f)
+                    : new Color(0.1f, 0.85f, 1f, 0.9f);
                 Handles.SphereHandleCap(0, worldPosition, Quaternion.identity, size, EventType.Repaint);
                 Handles.Label(worldPosition + Vector3.up * size * 2f, i.ToString());
+                Handles.color = oldColor;
 
-                EditorGUI.BeginChangeCheck();
-                var movedWorldPosition = Handles.PositionHandle(worldPosition, segment.transform.rotation);
-                if (EditorGUI.EndChangeCheck())
+                var click = DrawSceneMarkerButton(worldPosition, size);
+                if (click == MarkerClickKind.Primary)
                 {
-                    RoadSegmentSurfaceGenerator.RegisterGeneratedHierarchyUndo(segment, "Move Road Control Point");
-                    Undo.RecordObject(segment, "Move Road Control Point");
-                    points[i].position = segment.transform.InverseTransformPoint(movedWorldPosition);
-                    EditorUtility.SetDirty(segment);
-                    RoadNetworkPreviewScheduler.Schedule(segment, true);
+                    SetSelectedControlPointIndex(segment, i);
+                    SceneView.RepaintAll();
+                }
+                else if (click == MarkerClickKind.Context)
+                {
+                    SetSelectedControlPointIndex(segment, i);
+                    ShowControlPointContextMenu(segment, i);
+                    SceneView.RepaintAll();
                 }
             }
+        }
+
+        private static float CalculateControlPointMarkerSize(Vector3 worldPosition, bool selected)
+        {
+            var scaledSize = HandleUtility.GetHandleSize(worldPosition) *
+                (selected ? SelectedControlPointMarkerSize : ControlPointMarkerSize);
+            var minSize = selected ? SelectedControlPointMarkerMinWorldSize : ControlPointMarkerMinWorldSize;
+            return Mathf.Max(scaledSize, minSize);
+        }
+
+        private static void DrawSelectedControlPointHandle(RoadSegment segment)
+        {
+            if (!HasSelectedControlPoint(segment, out var index))
+            {
+                return;
+            }
+
+            var points = segment.controlPoints;
+            if (points == null || index < 0 || index >= points.Length)
+            {
+                return;
+            }
+
+            var localPosition = GetControlPointPositionOrDefault(points, index, Vector3.zero);
+            var worldPosition = segment.transform.TransformPoint(localPosition);
+            EditorGUI.BeginChangeCheck();
+            var movedWorldPosition = Handles.PositionHandle(worldPosition, segment.transform.rotation);
+            if (EditorGUI.EndChangeCheck())
+            {
+                RoadSegmentSurfaceGenerator.RegisterGeneratedHierarchyUndo(segment, "Move Road Control Point");
+                Undo.RecordObject(segment, "Move Road Control Point");
+                var point = GetOrCreateControlPoint(points, index);
+                if (point == null)
+                {
+                    return;
+                }
+
+                point.position = segment.transform.InverseTransformPoint(movedWorldPosition);
+                EditorUtility.SetDirty(segment);
+                RoadNetworkPreviewScheduler.Schedule(segment, true);
+            }
+        }
+
+        private static void HandleControlPointDeleteKey(RoadSegment segment)
+        {
+            var evt = Event.current;
+            if (evt == null || evt.type != EventType.KeyDown)
+            {
+                return;
+            }
+
+            if (evt.keyCode != KeyCode.Delete && evt.keyCode != KeyCode.Backspace)
+            {
+                return;
+            }
+
+            if (HasSelectedControlPoint(segment, out var index) && DeleteControlPoint(segment, index))
+            {
+                evt.Use();
+            }
+        }
+
+        private static MarkerClickKind DrawSceneMarkerButton(Vector3 worldPosition, float size)
+        {
+            var evt = Event.current;
+            if (evt == null)
+            {
+                return MarkerClickKind.None;
+            }
+
+            var controlId = GUIUtility.GetControlID(FocusType.Passive);
+            switch (evt.type)
+            {
+                case EventType.Layout:
+                    HandleUtility.AddControl(
+                        controlId,
+                        HandleUtility.DistanceToCircle(worldPosition, size * MarkerPickScale));
+                    break;
+                case EventType.MouseDown:
+                    if (!evt.alt && HandleUtility.nearestControl == controlId)
+                    {
+                        if (evt.button == 0 || evt.button == 1)
+                        {
+                            GUIUtility.hotControl = controlId;
+                            var click = evt.button == 0
+                                ? MarkerClickKind.Primary
+                                : MarkerClickKind.Context;
+                            evt.Use();
+                            GUIUtility.hotControl = 0;
+                            return click;
+                        }
+                    }
+                    break;
+                case EventType.MouseUp:
+                case EventType.Ignore:
+                    if (GUIUtility.hotControl == controlId)
+                    {
+                        GUIUtility.hotControl = 0;
+                    }
+                    break;
+            }
+
+            return MarkerClickKind.None;
+        }
+
+        private static int GetSelectedControlPointIndex(RoadSegment segment)
+        {
+            if (segment == null)
+            {
+                return -1;
+            }
+
+            return SelectedControlPointIndices.TryGetValue(segment.GetInstanceID(), out var index)
+                ? index
+                : -1;
+        }
+
+        private static void SetSelectedControlPointIndex(RoadSegment segment, int index)
+        {
+            if (segment == null)
+            {
+                return;
+            }
+
+            var points = segment.controlPoints;
+            var segmentId = segment.GetInstanceID();
+            if (points == null || points.Length == 0)
+            {
+                SelectedControlPointIndices.Remove(segmentId);
+                return;
+            }
+
+            SelectedControlPointIndices[segmentId] = Mathf.Clamp(index, 0, points.Length - 1);
+        }
+
+        private static int NormalizeSelectedControlPointIndex(RoadSegment segment)
+        {
+            if (segment == null)
+            {
+                return -1;
+            }
+
+            var segmentId = segment.GetInstanceID();
+            var points = segment.controlPoints;
+            if (points == null || points.Length == 0)
+            {
+                SelectedControlPointIndices.Remove(segmentId);
+                return -1;
+            }
+
+            if (!SelectedControlPointIndices.TryGetValue(segmentId, out var index))
+            {
+                return -1;
+            }
+
+            if (index < 0)
+            {
+                SelectedControlPointIndices.Remove(segmentId);
+                return -1;
+            }
+
+            var normalized = Mathf.Min(index, points.Length - 1);
+            SelectedControlPointIndices[segmentId] = normalized;
+            return normalized;
+        }
+
+        private static bool HasSelectedControlPoint(RoadSegment segment, out int index)
+        {
+            index = NormalizeSelectedControlPointIndex(segment);
+            return index >= 0;
+        }
+
+        private static void CleanupStaleSelectedControlPointEntries()
+        {
+            if (SelectedControlPointIndices.Count == 0)
+            {
+                return;
+            }
+
+            var staleIds = new List<int>();
+            foreach (var pair in SelectedControlPointIndices)
+            {
+                if (EditorUtility.InstanceIDToObject(pair.Key) as RoadSegment == null)
+                {
+                    staleIds.Add(pair.Key);
+                }
+            }
+
+            foreach (var id in staleIds)
+            {
+                SelectedControlPointIndices.Remove(id);
+            }
+        }
+
+        private static void HandleUndoRedo()
+        {
+            CleanupStaleSelectedControlPointEntries();
+            SceneView.RepaintAll();
         }
 
         private static void HandleShiftClickAppend(RoadSegment segment)
         {
             var evt = Event.current;
-            if (evt == null || evt.alt)
+            if (evt == null || evt.alt || evt.type == EventType.Used || GUIUtility.hotControl != 0)
             {
                 return;
             }
@@ -465,6 +734,343 @@ namespace MitarashiDango.RoadAssetGenerator
             return planePoint + segment.transform.forward * 5f;
         }
 
+        private static Vector3 GetControlPointPositionOrDefault(SplinePoint[] points, int index, Vector3 fallback)
+        {
+            if (points == null || index < 0 || index >= points.Length)
+            {
+                return fallback;
+            }
+
+            return points[index]?.position ?? fallback;
+        }
+
+        private static SplinePoint GetOrCreateControlPoint(SplinePoint[] points, int index)
+        {
+            if (points == null || index < 0 || index >= points.Length)
+            {
+                return null;
+            }
+
+            return points[index] ?? (points[index] = new SplinePoint());
+        }
+
+        private static Vector3[] SnapshotControlPointPositions(SplinePoint[] points)
+        {
+            if (points == null || points.Length == 0)
+            {
+                return Array.Empty<Vector3>();
+            }
+
+            var positions = new Vector3[points.Length];
+            for (var i = 0; i < points.Length; i++)
+            {
+                positions[i] = GetControlPointPositionOrDefault(points, i, Vector3.zero);
+            }
+
+            return positions;
+        }
+
+        private static Vector3 CalculatePrependPosition(RoadSegment segment)
+        {
+            var positions = SnapshotControlPointPositions(segment != null ? segment.controlPoints : null);
+            if (positions.Length == 0)
+            {
+                return Vector3.zero;
+            }
+
+            var first = positions[0];
+            if (positions.Length >= 2)
+            {
+                var direction = first - positions[1];
+                if (direction.sqrMagnitude > CatmullRomSpline.Epsilon * CatmullRomSpline.Epsilon)
+                {
+                    return first + direction;
+                }
+            }
+
+            return first + Vector3.back * 5f;
+        }
+
+        private static Vector3 CalculateAppendPosition(RoadSegment segment)
+        {
+            var positions = SnapshotControlPointPositions(segment != null ? segment.controlPoints : null);
+            if (positions.Length == 0)
+            {
+                return Vector3.zero;
+            }
+
+            var last = positions[positions.Length - 1];
+            if (positions.Length >= 2)
+            {
+                var direction = last - positions[positions.Length - 2];
+                if (direction.sqrMagnitude > CatmullRomSpline.Epsilon * CatmullRomSpline.Epsilon)
+                {
+                    return last + direction;
+                }
+            }
+
+            return last + Vector3.forward * 5f;
+        }
+
+        private static Vector3 CalculateShapePreservingInsertPosition(RoadSegment segment, int insertIndex)
+        {
+            var positions = SnapshotControlPointPositions(segment != null ? segment.controlPoints : null);
+            if (positions.Length == 0)
+            {
+                return Vector3.zero;
+            }
+
+            insertIndex = Mathf.Clamp(insertIndex, 0, positions.Length);
+            if (insertIndex <= 0)
+            {
+                return CalculatePrependPosition(segment);
+            }
+            if (insertIndex >= positions.Length)
+            {
+                return CalculateAppendPosition(segment);
+            }
+
+            var fallbackCandidate = GetChordMidpoint(positions, insertIndex);
+            var preferredCandidate = fallbackCandidate;
+            var bestPosition = fallbackCandidate;
+            var bestError = float.PositiveInfinity;
+            TryUseShapePreserveCandidate(positions, insertIndex, fallbackCandidate, ref bestPosition, ref bestError);
+            if (TryGetParameterMidpoint(positions, insertIndex, out var parameterMidpoint))
+            {
+                preferredCandidate = parameterMidpoint;
+                TryUseShapePreserveCandidate(positions, insertIndex, parameterMidpoint, ref bestPosition, ref bestError);
+            }
+            if (TryGetArcLengthMidpoint(positions, insertIndex, out var arcLengthMidpoint))
+            {
+                preferredCandidate = arcLengthMidpoint;
+                TryUseShapePreserveCandidate(positions, insertIndex, arcLengthMidpoint, ref bestPosition, ref bestError);
+            }
+
+            if (float.IsInfinity(bestError) || float.IsNaN(bestError))
+            {
+                return preferredCandidate;
+            }
+
+            var step = CalculateShapePreserveInitialStep(positions, insertIndex);
+            if (step <= CatmullRomSpline.Epsilon)
+            {
+                return bestPosition;
+            }
+
+            for (var iteration = 0; iteration < ShapePreserveSearchIterations; iteration++)
+            {
+                foreach (var direction in ShapePreserveSearchDirections)
+                {
+                    var candidate = bestPosition + direction * step;
+                    var error = EvaluateInsertionShapeError(positions, insertIndex, candidate);
+                    if (!float.IsNaN(error) && error < bestError)
+                    {
+                        bestError = error;
+                        bestPosition = candidate;
+                    }
+                }
+
+                step *= 0.5f;
+            }
+
+            return bestPosition;
+        }
+
+        private static void TryUseShapePreserveCandidate(
+            Vector3[] positions,
+            int insertIndex,
+            Vector3 candidate,
+            ref Vector3 bestPosition,
+            ref float bestError)
+        {
+            var error = EvaluateInsertionShapeError(positions, insertIndex, candidate);
+            if (float.IsInfinity(error) || float.IsNaN(error) || error >= bestError)
+            {
+                return;
+            }
+
+            bestPosition = candidate;
+            bestError = error;
+        }
+
+        private static float CalculateShapePreserveInitialStep(Vector3[] positions, int insertIndex)
+        {
+            if (positions == null || insertIndex <= 0 || insertIndex >= positions.Length)
+            {
+                return 0f;
+            }
+
+            var adjacentDistance = Vector3.Distance(positions[insertIndex - 1], positions[insertIndex]);
+            var influenceLength = 0f;
+            var spline = new CatmullRomSpline(positions);
+            if (spline.IsValid)
+            {
+                var table = spline.BuildArcLengthTable(ShapePreserveArcLengthSamplesPerSegment);
+                var startParameter = Mathf.Clamp(insertIndex - 2f, 0f, spline.MaxParameter);
+                var endParameter = Mathf.Clamp(insertIndex + 1f, 0f, spline.MaxParameter);
+                influenceLength = EstimateDistanceAtParameter(table, endParameter) -
+                    EstimateDistanceAtParameter(table, startParameter);
+            }
+
+            return Mathf.Max(adjacentDistance * 0.25f, influenceLength * 0.08f);
+        }
+
+        private static float EvaluateInsertionShapeError(Vector3[] oldPositions, int insertIndex, Vector3 candidate)
+        {
+            if (oldPositions == null || oldPositions.Length < 2 || insertIndex <= 0 || insertIndex >= oldPositions.Length)
+            {
+                return float.PositiveInfinity;
+            }
+
+            var oldSpline = new CatmullRomSpline(oldPositions);
+            var newSpline = new CatmullRomSpline(InsertPosition(oldPositions, insertIndex, candidate));
+            if (!oldSpline.IsValid || !newSpline.IsValid)
+            {
+                return float.PositiveInfinity;
+            }
+
+            var oldTable = oldSpline.BuildArcLengthTable(ShapePreserveArcLengthSamplesPerSegment);
+            var newTable = newSpline.BuildArcLengthTable(ShapePreserveArcLengthSamplesPerSegment);
+            var leftIndex = insertIndex - 1;
+            var rightIndex = insertIndex;
+            var oldStartParameter = Mathf.Clamp(leftIndex - 1f, 0f, oldSpline.MaxParameter);
+            var oldEndParameter = Mathf.Clamp(rightIndex + 1f, 0f, oldSpline.MaxParameter);
+            var newStartParameter = oldStartParameter >= insertIndex ? oldStartParameter + 1f : oldStartParameter;
+            var newEndParameter = oldEndParameter >= insertIndex ? oldEndParameter + 1f : oldEndParameter;
+            newStartParameter = Mathf.Clamp(newStartParameter, 0f, newSpline.MaxParameter);
+            newEndParameter = Mathf.Clamp(newEndParameter, 0f, newSpline.MaxParameter);
+
+            var oldStartDistance = EstimateDistanceAtParameter(oldTable, oldStartParameter);
+            var oldEndDistance = EstimateDistanceAtParameter(oldTable, oldEndParameter);
+            var newStartDistance = EstimateDistanceAtParameter(newTable, newStartParameter);
+            var newEndDistance = EstimateDistanceAtParameter(newTable, newEndParameter);
+            if (oldEndDistance - oldStartDistance <= CatmullRomSpline.Epsilon ||
+                newEndDistance - newStartDistance <= CatmullRomSpline.Epsilon)
+            {
+                return float.PositiveInfinity;
+            }
+
+            var error = 0f;
+            for (var sampleIndex = 0; sampleIndex < ShapePreserveSampleCount; sampleIndex++)
+            {
+                var t = ShapePreserveSampleCount == 1
+                    ? 0f
+                    : sampleIndex / (float)(ShapePreserveSampleCount - 1);
+                var oldDistance = Mathf.Lerp(oldStartDistance, oldEndDistance, t);
+                var newDistance = Mathf.Lerp(newStartDistance, newEndDistance, t);
+                var oldPosition = oldTable.SampleByDistance(oldDistance).position;
+                var newPosition = newTable.SampleByDistance(newDistance).position;
+                error += (oldPosition - newPosition).sqrMagnitude;
+            }
+
+            return error / ShapePreserveSampleCount;
+        }
+
+        private static float EstimateDistanceAtParameter(CatmullRomArcLengthTable table, float parameter)
+        {
+            if (table == null || table.TotalLengthMeters <= CatmullRomSpline.Epsilon)
+            {
+                return 0f;
+            }
+
+            var minParameter = table.ParameterAtDistance(0f);
+            var maxParameter = table.ParameterAtDistance(table.TotalLengthMeters);
+            var targetParameter = Mathf.Clamp(parameter, minParameter, maxParameter);
+            var low = 0f;
+            var high = table.TotalLengthMeters;
+            for (var i = 0; i < DistanceAtParameterSearchIterations; i++)
+            {
+                var mid = (low + high) * 0.5f;
+                if (table.ParameterAtDistance(mid) < targetParameter)
+                {
+                    low = mid;
+                }
+                else
+                {
+                    high = mid;
+                }
+            }
+
+            return (low + high) * 0.5f;
+        }
+
+        private static bool TryGetArcLengthMidpoint(Vector3[] positions, int insertIndex, out Vector3 midpoint)
+        {
+            midpoint = Vector3.zero;
+            if (positions == null || positions.Length < 2 || insertIndex <= 0 || insertIndex >= positions.Length)
+            {
+                return false;
+            }
+
+            var spline = new CatmullRomSpline(positions);
+            if (!spline.IsValid)
+            {
+                return false;
+            }
+
+            var table = spline.BuildArcLengthTable(ShapePreserveArcLengthSamplesPerSegment);
+            if (table.TotalLengthMeters <= CatmullRomSpline.Epsilon)
+            {
+                return false;
+            }
+
+            var startDistance = EstimateDistanceAtParameter(table, insertIndex - 1f);
+            var endDistance = EstimateDistanceAtParameter(table, insertIndex);
+            if (endDistance - startDistance <= CatmullRomSpline.Epsilon)
+            {
+                return false;
+            }
+
+            midpoint = table.SampleByDistance((startDistance + endDistance) * 0.5f).position;
+            return true;
+        }
+
+        private static bool TryGetParameterMidpoint(Vector3[] positions, int insertIndex, out Vector3 midpoint)
+        {
+            midpoint = Vector3.zero;
+            if (positions == null || positions.Length < 2 || insertIndex <= 0 || insertIndex >= positions.Length)
+            {
+                return false;
+            }
+
+            var spline = new CatmullRomSpline(positions);
+            if (!spline.IsValid)
+            {
+                return false;
+            }
+
+            midpoint = spline.EvaluatePosition(insertIndex - 0.5f);
+            return true;
+        }
+
+        private static Vector3 GetChordMidpoint(Vector3[] positions, int insertIndex)
+        {
+            if (positions == null || positions.Length == 0)
+            {
+                return Vector3.zero;
+            }
+
+            insertIndex = Mathf.Clamp(insertIndex, 1, positions.Length - 1);
+            return (positions[insertIndex - 1] + positions[insertIndex]) * 0.5f;
+        }
+
+        private static Vector3[] InsertPosition(Vector3[] positions, int insertIndex, Vector3 candidate)
+        {
+            var newPositions = new Vector3[positions.Length + 1];
+            for (var i = 0; i < insertIndex; i++)
+            {
+                newPositions[i] = positions[i];
+            }
+
+            newPositions[insertIndex] = candidate;
+            for (var i = insertIndex; i < positions.Length; i++)
+            {
+                newPositions[i + 1] = positions[i];
+            }
+
+            return newPositions;
+        }
+
         private static void ApplySurfaceStyle(RoadSegment segment, RoadSurfaceStyleAsset template)
         {
             if (segment == null || template == null)
@@ -499,50 +1105,238 @@ namespace MitarashiDango.RoadAssetGenerator
             RoadNetworkPreviewScheduler.Schedule(segment, true);
         }
 
+        private static bool PrependControlPoint(RoadSegment segment)
+        {
+            return InsertControlPoint(
+                segment,
+                0,
+                CalculatePrependPosition(segment),
+                "Prepend Road Control Point");
+        }
+
         private static void AppendControlPoint(RoadSegment segment)
         {
-            var localPosition = Vector3.zero;
-            var points = segment.controlPoints;
-            if (points != null && points.Length > 0 && points[points.Length - 1] != null)
-            {
-                localPosition = points[points.Length - 1].position + Vector3.forward * 5f;
-            }
-
-            AppendControlPoint(segment, localPosition);
+            AppendControlPoint(segment, CalculateAppendPosition(segment));
         }
 
         private static void AppendControlPoint(RoadSegment segment, Vector3 localPosition)
         {
+            InsertControlPoint(
+                segment,
+                segment != null ? segment.controlPoints?.Length ?? 0 : 0,
+                localPosition,
+                "Append Road Control Point");
+        }
+
+        private static bool InsertBeforeControlPoint(RoadSegment segment, int index)
+        {
             if (segment == null)
             {
-                return;
+                return false;
             }
 
-            RoadSegmentSurfaceGenerator.RegisterGeneratedHierarchyUndo(segment, "Append Road Control Point");
-            Undo.RecordObject(segment, "Append Road Control Point");
+            var points = segment.controlPoints;
+            var length = points?.Length ?? 0;
+            if (length == 0 || index <= 0)
+            {
+                return PrependControlPoint(segment);
+            }
+
+            var insertIndex = Mathf.Clamp(index, 0, length);
+            return InsertControlPoint(
+                segment,
+                insertIndex,
+                CalculateShapePreservingInsertPosition(segment, insertIndex),
+                "Insert Road Control Point");
+        }
+
+        private static bool InsertAfterControlPoint(RoadSegment segment, int index)
+        {
+            if (segment == null)
+            {
+                return false;
+            }
+
+            var points = segment.controlPoints;
+            var length = points?.Length ?? 0;
+            if (length == 0 || index >= length - 1)
+            {
+                AppendControlPoint(segment);
+                return true;
+            }
+
+            var insertIndex = Mathf.Clamp(index + 1, 0, length);
+            return InsertControlPoint(
+                segment,
+                insertIndex,
+                CalculateShapePreservingInsertPosition(segment, insertIndex),
+                "Insert Road Control Point");
+        }
+
+        private static bool InsertControlPoint(RoadSegment segment, int insertIndex, Vector3 localPosition)
+        {
+            return InsertControlPoint(segment, insertIndex, localPosition, "Insert Road Control Point");
+        }
+
+        private static bool InsertControlPoint(
+            RoadSegment segment,
+            int insertIndex,
+            Vector3 localPosition,
+            string undoName)
+        {
+            if (segment == null)
+            {
+                return false;
+            }
+
             var oldPoints = segment.controlPoints ?? Array.Empty<SplinePoint>();
+            insertIndex = Mathf.Clamp(insertIndex, 0, oldPoints.Length);
+            RoadSegmentSurfaceGenerator.RegisterGeneratedHierarchyUndo(segment, undoName);
+            Undo.RecordObject(segment, undoName);
             var newPoints = new SplinePoint[oldPoints.Length + 1];
-            Array.Copy(oldPoints, newPoints, oldPoints.Length);
-            newPoints[newPoints.Length - 1] = new SplinePoint(localPosition);
+            for (var i = 0; i < insertIndex; i++)
+            {
+                newPoints[i] = oldPoints[i];
+            }
+
+            newPoints[insertIndex] = new SplinePoint(localPosition);
+            for (var i = insertIndex; i < oldPoints.Length; i++)
+            {
+                newPoints[i + 1] = oldPoints[i];
+            }
+
             segment.controlPoints = newPoints;
+            SetSelectedControlPointIndex(segment, insertIndex);
             EditorUtility.SetDirty(segment);
             RoadNetworkPreviewScheduler.Schedule(segment, true);
+            SceneView.RepaintAll();
+            return true;
         }
 
         private static void DeleteLastControlPoint(RoadSegment segment)
         {
-            if (segment == null || segment.controlPoints == null || segment.controlPoints.Length <= 2)
+            if (segment?.controlPoints == null)
             {
                 return;
             }
 
+            DeleteControlPoint(segment, segment.controlPoints.Length - 1);
+        }
+
+        private static bool DeleteControlPoint(RoadSegment segment, int deleteIndex)
+        {
+            if (!CanDeleteControlPoint(segment, deleteIndex))
+            {
+                return false;
+            }
+
+            var oldPoints = segment.controlPoints;
             RoadSegmentSurfaceGenerator.RegisterGeneratedHierarchyUndo(segment, "Delete Road Control Point");
             Undo.RecordObject(segment, "Delete Road Control Point");
-            var newPoints = new SplinePoint[segment.controlPoints.Length - 1];
-            Array.Copy(segment.controlPoints, newPoints, newPoints.Length);
+            var newPoints = new SplinePoint[oldPoints.Length - 1];
+            var newIndex = 0;
+            for (var i = 0; i < oldPoints.Length; i++)
+            {
+                if (i == deleteIndex)
+                {
+                    continue;
+                }
+
+                newPoints[newIndex] = oldPoints[i];
+                newIndex++;
+            }
+
             segment.controlPoints = newPoints;
+            if (newPoints.Length > 0)
+            {
+                SetSelectedControlPointIndex(segment, Mathf.Clamp(deleteIndex - 1, 0, newPoints.Length - 1));
+            }
+            else
+            {
+                SelectedControlPointIndices.Remove(segment.GetInstanceID());
+            }
+
             EditorUtility.SetDirty(segment);
             RoadNetworkPreviewScheduler.Schedule(segment, true);
+            SceneView.RepaintAll();
+            return true;
+        }
+
+        private static bool CanDeleteControlPoint(RoadSegment segment, int index)
+        {
+            if (segment == null || segment.controlPoints == null || segment.controlPoints.Length <= 2)
+            {
+                return false;
+            }
+
+            if (index < 0 || index >= segment.controlPoints.Length)
+            {
+                return false;
+            }
+
+            if (index == 0 && segment.startConnection != null && segment.startConnection.IsConnected)
+            {
+                return false;
+            }
+
+            if (index == segment.controlPoints.Length - 1 &&
+                segment.endConnection != null &&
+                segment.endConnection.IsConnected)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static void ShowControlPointContextMenu(RoadSegment segment, int index)
+        {
+            var menu = new GenericMenu();
+            menu.AddItem(
+                new GUIContent("Insert Before"),
+                false,
+                () => InsertBeforeControlPoint(segment, index));
+            menu.AddItem(
+                new GUIContent("Insert After"),
+                false,
+                () => InsertAfterControlPoint(segment, index));
+            if (CanDeleteControlPoint(segment, index))
+            {
+                menu.AddItem(
+                    new GUIContent("Delete Point"),
+                    false,
+                    () => DeleteControlPoint(segment, index));
+            }
+            else
+            {
+                menu.AddDisabledItem(new GUIContent("Delete Point"));
+            }
+
+            menu.AddItem(
+                new GUIContent("Frame Selected"),
+                false,
+                () => FrameControlPoint(segment, index));
+            menu.ShowAsContext();
+        }
+
+        private static bool FrameControlPoint(RoadSegment segment, int index)
+        {
+            if (segment == null || segment.controlPoints == null || index < 0 || index >= segment.controlPoints.Length)
+            {
+                return false;
+            }
+
+            var sceneView = SceneView.lastActiveSceneView ?? SceneView.currentDrawingSceneView;
+            if (sceneView == null)
+            {
+                return false;
+            }
+
+            var worldPosition = segment.transform.TransformPoint(
+                GetControlPointPositionOrDefault(segment.controlPoints, index, Vector3.zero));
+            var size = Mathf.Max(HandleUtility.GetHandleSize(worldPosition), 0.5f);
+            sceneView.Frame(new Bounds(worldPosition, Vector3.one * size), false);
+            return true;
         }
 
         private void ScheduleTargets()
