@@ -7,6 +7,7 @@ namespace MitarashiDango.RoadAssetGenerator
     public enum RoadLaneDirection { Forward, Backward }
     public enum RoadLineKind { None, Solid, Dashed }
     public enum RoadProfileTransitionSide { Left, Right }
+    public enum RoadLineTextureTiling { StretchAlongV, RepeatAlongV }
 
     /// <summary>道路区間へ埋め込まれる幅員・区画線定義。</summary>
     [Serializable]
@@ -214,6 +215,7 @@ namespace MitarashiDango.RoadAssetGenerator
         public Color color = Color.white;
         [Min(0.05f)] public float dashLengthMeters = 5f;
         [Min(0.05f)] public float dashGapMeters = 5f;
+        [InspectorName("Marking Detail")] public RoadLineMarkingDetailSettings markingDetail = new RoadLineMarkingDetailSettings();
 
         public RoadLineStroke Clone()
         {
@@ -224,6 +226,7 @@ namespace MitarashiDango.RoadAssetGenerator
                 color = color,
                 dashLengthMeters = dashLengthMeters,
                 dashGapMeters = dashGapMeters,
+                markingDetail = markingDetail?.Clone() ?? new RoadLineMarkingDetailSettings(),
             };
         }
 
@@ -244,6 +247,45 @@ namespace MitarashiDango.RoadAssetGenerator
                 kind = kind,
                 color = new Color(232f / 255f, 168f / 255f, 32f / 255f),
                 widthMeters = 0.15f,
+            };
+        }
+    }
+
+    /// <summary>RoadNetwork メッシュ区画線用の画像ベースのディティール設定。</summary>
+    [Serializable]
+    public class RoadLineMarkingDetailSettings
+    {
+        public const float DefaultSmoothness = 0.25f;
+        public const float DefaultWornSmoothness = 0.08f;
+        public const float DefaultTileLengthMeters = 10f;
+
+        [InspectorName("Wear Mask")] public Texture2D wearMask;
+        [Range(0f, 1f), InspectorName("Mask Strength")] public float wearMaskStrength = 1f;
+        [InspectorName("Mask Tiling")] public RoadLineTextureTiling wearMaskTiling = RoadLineTextureTiling.StretchAlongV;
+        [Min(0.1f), InspectorName("Mask Tile Length (m)")] public float wearMaskTileLengthMeters = DefaultTileLengthMeters;
+        [InspectorName("Invert Mask")] public bool invertWearMask = false;
+        [InspectorName("Line Texture")] public Texture2D lineTexture;
+        [Range(0f, 1f), InspectorName("Texture Strength")] public float lineTextureStrength = 1f;
+        [Min(0.1f), InspectorName("Texture Tile Length (m)")] public float lineTextureTileLengthMeters = DefaultTileLengthMeters;
+        [Range(0f, 1f), InspectorName("Texture Color Influence")] public float lineTextureColorInfluence = 0f;
+        [Range(0f, 1f), InspectorName("Smoothness")] public float smoothness = DefaultSmoothness;
+        [Range(0f, 1f), InspectorName("Worn Smoothness")] public float wornSmoothness = DefaultWornSmoothness;
+
+        public RoadLineMarkingDetailSettings Clone()
+        {
+            return new RoadLineMarkingDetailSettings
+            {
+                wearMask = wearMask,
+                wearMaskStrength = wearMaskStrength,
+                wearMaskTiling = wearMaskTiling,
+                wearMaskTileLengthMeters = wearMaskTileLengthMeters,
+                invertWearMask = invertWearMask,
+                lineTexture = lineTexture,
+                lineTextureStrength = lineTextureStrength,
+                lineTextureTileLengthMeters = lineTextureTileLengthMeters,
+                lineTextureColorInfluence = lineTextureColorInfluence,
+                smoothness = smoothness,
+                wornSmoothness = wornSmoothness,
             };
         }
     }

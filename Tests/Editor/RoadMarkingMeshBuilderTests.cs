@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -150,6 +151,109 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
         }
 
         [Test]
+        public void SplitMarkingMeshesKeepAbsoluteDistanceUvs()
+        {
+            var networkObject = new GameObject("RoadNetwork_Marking_Absolute_Uv_Split_Test");
+            var meshes = new List<RoadMarkingMeshData>();
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.meshSegmentLengthMeters = 6f;
+                network.maxSurfaceSampleLengthMeters = 2f;
+                var segment = CreateSegment(network, CreateSingleStrokeProfile(RoadLineKind.Solid), 14f);
+
+                meshes = RoadMarkingMeshBuilder.Build(segment, network);
+
+                Assert.That(meshes, Has.Count.GreaterThan(1));
+                var previousEnd = -1f;
+                for (var i = 0; i < meshes.Count; i++)
+                {
+                    var uvs = meshes[i].mesh.uv;
+                    Assert.That(uvs, Is.Not.Empty);
+
+                    var minY = float.PositiveInfinity;
+                    var maxY = float.NegativeInfinity;
+                    foreach (var uv in uvs)
+                    {
+                        minY = Mathf.Min(minY, uv.y);
+                        maxY = Mathf.Max(maxY, uv.y);
+                    }
+
+                    Assert.That(minY, Is.EqualTo(meshes[i].startDistanceMeters).Within(0.001f));
+                    Assert.That(maxY, Is.EqualTo(meshes[i].endDistanceMeters).Within(0.001f));
+                    Assert.That(meshes[i].detailStartDistanceMeters, Is.EqualTo(0f).Within(0.001f));
+                    Assert.That(meshes[i].detailEndDistanceMeters, Is.EqualTo(14f).Within(0.001f));
+                    Assert.That(minY, Is.GreaterThanOrEqualTo(previousEnd));
+                    previousEnd = maxY;
+                }
+
+                Assert.That(meshes[0].startDistanceMeters, Is.EqualTo(0f).Within(0.001f));
+                Assert.That(previousEnd, Is.EqualTo(14f).Within(0.001f));
+            }
+            finally
+            {
+                DestroyMeshes(meshes);
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void BuildCopiesStrokeMarkingDetailToMeshData()
+        {
+            var networkObject = new GameObject("RoadNetwork_Marking_Detail_Data_Test");
+            var meshes = new List<RoadMarkingMeshData>();
+            Texture2D wearMask = null;
+            Texture2D lineTexture = null;
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.meshSegmentLengthMeters = 100f;
+                var profile = CreateSingleStrokeProfile(RoadLineKind.Solid);
+                wearMask = CreateTestTexture("Marking Detail Wear Mask");
+                lineTexture = CreateTestTexture("Marking Detail Line Texture");
+                var detail = profile.boundaryLines[1].strokes[0].markingDetail;
+                detail.wearMask = wearMask;
+                detail.wearMaskStrength = 0.35f;
+                detail.wearMaskTiling = RoadLineTextureTiling.RepeatAlongV;
+                detail.wearMaskTileLengthMeters = 2.5f;
+                detail.invertWearMask = true;
+                detail.lineTexture = lineTexture;
+                detail.lineTextureStrength = 0.65f;
+                detail.lineTextureTileLengthMeters = 4.5f;
+                detail.lineTextureColorInfluence = 0.2f;
+                detail.smoothness = 0.4f;
+                detail.wornSmoothness = 0.06f;
+                var segment = CreateSegment(network, profile, 20f);
+
+                meshes = RoadMarkingMeshBuilder.Build(segment, network);
+                detail.wearMaskStrength = 0.9f;
+
+                Assert.That(meshes, Has.Count.EqualTo(1));
+                Assert.That(meshes[0].markingDetail, Is.Not.SameAs(detail));
+                Assert.That(meshes[0].markingDetail.wearMask, Is.SameAs(wearMask));
+                Assert.That(meshes[0].markingDetail.wearMaskStrength, Is.EqualTo(0.35f).Within(0.001f));
+                Assert.That(meshes[0].markingDetail.wearMaskTiling, Is.EqualTo(RoadLineTextureTiling.RepeatAlongV));
+                Assert.That(meshes[0].markingDetail.wearMaskTileLengthMeters, Is.EqualTo(2.5f).Within(0.001f));
+                Assert.That(meshes[0].markingDetail.invertWearMask, Is.True);
+                Assert.That(meshes[0].markingDetail.lineTexture, Is.SameAs(lineTexture));
+                Assert.That(meshes[0].markingDetail.lineTextureStrength, Is.EqualTo(0.65f).Within(0.001f));
+                Assert.That(meshes[0].markingDetail.lineTextureTileLengthMeters, Is.EqualTo(4.5f).Within(0.001f));
+                Assert.That(meshes[0].markingDetail.lineTextureColorInfluence, Is.EqualTo(0.2f).Within(0.001f));
+                Assert.That(meshes[0].markingDetail.smoothness, Is.EqualTo(0.4f).Within(0.001f));
+                Assert.That(meshes[0].markingDetail.wornSmoothness, Is.EqualTo(0.06f).Within(0.001f));
+            }
+            finally
+            {
+                DestroyMeshes(meshes);
+                Object.DestroyImmediate(networkObject);
+                Object.DestroyImmediate(wearMask);
+                Object.DestroyImmediate(lineTexture);
+            }
+        }
+
+        [Test]
         public void RegenerateCreatesSeparateMarkingsRootAndColoredMaterial()
         {
             var networkObject = new GameObject("RoadNetwork_Marking_Generator_Test");
@@ -202,6 +306,195 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             {
                 Object.DestroyImmediate(networkObject);
                 Object.DestroyImmediate(fallbackMaterial);
+            }
+        }
+
+        [Test]
+        public void RegenerateAppliesStrokeMarkingDetailToDefaultMarkingMaterial()
+        {
+            var networkObject = new GameObject("RoadNetwork_Marking_Detail_Material_Test");
+            RoadSegment segment = null;
+            Texture2D wearMask = null;
+            Texture2D lineTexture = null;
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                var profile = CreateSingleStrokeProfile(RoadLineKind.Solid);
+                wearMask = CreateTestTexture("Material Wear Mask");
+                lineTexture = CreateTestTexture("Material Line Texture");
+                var detail = profile.boundaryLines[1].strokes[0].markingDetail;
+                detail.wearMask = wearMask;
+                detail.wearMaskStrength = 0.6f;
+                detail.wearMaskTiling = RoadLineTextureTiling.RepeatAlongV;
+                detail.wearMaskTileLengthMeters = 1.75f;
+                detail.invertWearMask = true;
+                detail.lineTexture = lineTexture;
+                detail.lineTextureStrength = 0.8f;
+                detail.lineTextureTileLengthMeters = 3.25f;
+                detail.lineTextureColorInfluence = 0.25f;
+                detail.smoothness = 0.42f;
+                detail.wornSmoothness = 0.05f;
+                segment = CreateSegment(network, profile, 20f);
+
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+
+                Assert.That(segment.generatedMarkingObjects, Has.Count.EqualTo(1));
+                var renderer = segment.generatedMarkingObjects[0].GetComponent<MeshRenderer>();
+                Assert.That(renderer, Is.Not.Null);
+                var material = renderer.sharedMaterial;
+                Assert.That(material, Is.Not.Null);
+                Assert.That(material.HasProperty("_WearMask"), Is.True);
+                Assert.That(material.GetTexture("_WearMask"), Is.SameAs(wearMask));
+                Assert.That(material.GetFloat("_WearMaskStrength"), Is.EqualTo(0.6f).Within(0.001f));
+                Assert.That(material.GetFloat("_WearMaskTiling"), Is.EqualTo(1f).Within(0.001f));
+                Assert.That(material.GetFloat("_WearMaskTileLengthMeters"), Is.EqualTo(1.75f).Within(0.001f));
+                Assert.That(material.GetFloat("_WearMaskInvert"), Is.EqualTo(1f).Within(0.001f));
+                Assert.That(material.GetFloat("_WearMaskClipThreshold"), Is.EqualTo(0.72f).Within(0.001f));
+                Assert.That(material.HasProperty("_LineTexture"), Is.True);
+                Assert.That(material.GetTexture("_LineTexture"), Is.SameAs(lineTexture));
+                Assert.That(material.GetFloat("_LineTextureStrength"), Is.EqualTo(0.8f).Within(0.001f));
+                Assert.That(material.GetFloat("_LineTextureTileLengthMeters"), Is.EqualTo(3.25f).Within(0.001f));
+                Assert.That(material.GetFloat("_LineTextureColorInfluence"), Is.EqualTo(0.25f).Within(0.001f));
+                Assert.That(material.GetFloat("_MarkingStartDistanceMeters"), Is.EqualTo(0f).Within(0.001f));
+                Assert.That(material.GetFloat("_MarkingLengthMeters"), Is.EqualTo(20f).Within(0.001f));
+                Assert.That(material.GetFloat("_WornSmoothness"), Is.EqualTo(0.05f).Within(0.001f));
+                Assert.That(material.GetFloat(material.HasProperty("_Glossiness") ? "_Glossiness" : "_Smoothness"), Is.EqualTo(0.42f).Within(0.001f));
+                AssertMarkingRendererContract(renderer);
+            }
+            finally
+            {
+                if (segment != null)
+                {
+                    RoadSegmentSurfaceGenerator.Clear(segment, false);
+                }
+                Object.DestroyImmediate(networkObject);
+                Object.DestroyImmediate(wearMask);
+                Object.DestroyImmediate(lineTexture);
+            }
+        }
+
+        [Test]
+        public void RegenerateLeavesMarkingDetailDisabledWhenTexturesAreUnset()
+        {
+            var networkObject = new GameObject("RoadNetwork_Marking_Default_Detail_Test");
+            RoadSegment segment = null;
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                var segmentProfile = CreateSingleStrokeProfile(RoadLineKind.Solid);
+                segment = CreateSegment(network, segmentProfile, 20f);
+
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+
+                var renderer = segment.generatedMarkingObjects[0].GetComponent<MeshRenderer>();
+                Assert.That(renderer, Is.Not.Null);
+                var material = renderer.sharedMaterial;
+                Assert.That(material, Is.Not.Null);
+                Assert.That(material.HasProperty("_WearMaskStrength"), Is.True);
+                Assert.That(material.GetFloat("_WearMaskStrength"), Is.EqualTo(0f).Within(0.001f));
+                Assert.That(material.GetFloat("_LineTextureStrength"), Is.EqualTo(0f).Within(0.001f));
+                Assert.That(material.GetFloat(material.HasProperty("_Glossiness") ? "_Glossiness" : "_Smoothness"), Is.EqualTo(0.25f).Within(0.001f));
+            }
+            finally
+            {
+                if (segment != null)
+                {
+                    RoadSegmentSurfaceGenerator.Clear(segment, false);
+                }
+                Object.DestroyImmediate(networkObject);
+            }
+        }
+
+        [Test]
+        public void RegenerateWithCustomMarkingMaterialPreservesSmoothnessWhenDetailTexturesAreUnset()
+        {
+            var networkObject = new GameObject("RoadNetwork_Custom_Marking_Default_Detail_Test");
+            Material fallbackMaterial = null;
+            RoadSegment segment = null;
+
+            try
+            {
+                fallbackMaterial = CreateTestMaterial("Custom Marking Material With Authored Smoothness");
+                SetMaterialSmoothness(fallbackMaterial, 0.73f);
+
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.markingMaterial = fallbackMaterial;
+                var profile = CreateSingleStrokeProfile(RoadLineKind.Solid);
+                profile.boundaryLines[1].strokes[0].markingDetail.smoothness = 0.25f;
+                segment = CreateSegment(network, profile, 20f);
+
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+
+                var renderer = segment.generatedMarkingObjects[0].GetComponent<MeshRenderer>();
+                Assert.That(renderer, Is.Not.Null);
+                var material = renderer.sharedMaterial;
+                Assert.That(material, Is.Not.Null);
+                Assert.That(material, Is.Not.SameAs(fallbackMaterial));
+                Assert.That(TryReadMaterialSmoothness(material, out var smoothness), Is.True);
+                Assert.That(smoothness, Is.EqualTo(0.73f).Within(0.001f));
+            }
+            finally
+            {
+                if (segment != null)
+                {
+                    RoadSegmentSurfaceGenerator.Clear(segment, false);
+                }
+                Object.DestroyImmediate(networkObject);
+                Object.DestroyImmediate(fallbackMaterial);
+            }
+        }
+
+        [Test]
+        public void RegenerateWithCustomMarkingMaterialIgnoresMissingDetailProperties()
+        {
+            var networkObject = new GameObject("RoadNetwork_Custom_Marking_Detail_Test");
+            Material fallbackMaterial = null;
+            RoadSegment segment = null;
+            Texture2D wearMask = null;
+            Texture2D lineTexture = null;
+
+            try
+            {
+                fallbackMaterial = CreateTestMaterial("Custom Marking Material Without Detail Properties");
+                var network = networkObject.AddComponent<RoadNetwork>();
+                network.markingMaterial = fallbackMaterial;
+                var profile = CreateSingleStrokeProfile(RoadLineKind.Solid);
+                wearMask = CreateTestTexture("Custom Material Wear Mask");
+                lineTexture = CreateTestTexture("Custom Material Line Texture");
+                var detail = profile.boundaryLines[1].strokes[0].markingDetail;
+                detail.wearMask = wearMask;
+                detail.wearMaskStrength = 0.5f;
+                detail.lineTexture = lineTexture;
+                detail.lineTextureStrength = 0.4f;
+                detail.smoothness = 0.18f;
+                segment = CreateSegment(network, profile, 20f);
+
+                RoadSegmentSurfaceGenerator.Regenerate(segment, false);
+
+                var renderer = segment.generatedMarkingObjects[0].GetComponent<MeshRenderer>();
+                Assert.That(renderer, Is.Not.Null);
+                var material = renderer.sharedMaterial;
+                Assert.That(material, Is.Not.Null);
+                Assert.That(material, Is.Not.SameAs(fallbackMaterial));
+                Assert.That(material.HasProperty("_WearMask"), Is.False);
+                Assert.That(material.HasProperty("_LineTexture"), Is.False);
+                if (material.HasProperty("_Glossiness"))
+                {
+                    Assert.That(material.GetFloat("_Glossiness"), Is.EqualTo(0.18f).Within(0.001f));
+                }
+            }
+            finally
+            {
+                if (segment != null)
+                {
+                    RoadSegmentSurfaceGenerator.Clear(segment, false);
+                }
+                Object.DestroyImmediate(networkObject);
+                Object.DestroyImmediate(fallbackMaterial);
+                Object.DestroyImmediate(wearMask);
+                Object.DestroyImmediate(lineTexture);
             }
         }
 
@@ -304,6 +597,61 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             Assert.That(shaderSource, Does.Contain("\"LightMode\" = \"UniversalForward\""));
             Assert.That(shaderSource, Does.Contain("UniversalFragmentPBR"));
             Assert.That(shaderSource, Does.Not.Contain("Name \"RoadMarkingUnlit\""));
+        }
+
+        [Test]
+        public void DefaultMarkingShadersDefineImageBasedDetail()
+        {
+            const string builtInShaderPath =
+                "Packages/com.matcha-soft.road-asset-generator/Runtime/Shaders/RoadMarkingDepthBiasedBuiltIn.shader";
+            const string urpShaderPath =
+                "Packages/com.matcha-soft.road-asset-generator/Runtime/Shaders/RoadMarkingDepthBiasedURP.shader";
+
+            var builtInSource = File.ReadAllText(builtInShaderPath);
+            var urpSource = File.ReadAllText(urpShaderPath);
+            AssertImageBasedDetailShaderSource(builtInSource);
+            AssertImageBasedDetailShaderSource(urpSource);
+        }
+
+        [Test]
+        public void PreviewStateHashIncludesStrokeMarkingDetail()
+        {
+            var networkObject = new GameObject("RoadNetwork_Marking_Detail_Hash_Test");
+            Texture2D wearMask = null;
+            Texture2D lineTexture = null;
+
+            try
+            {
+                var network = networkObject.AddComponent<RoadNetwork>();
+                var profile = CreateSingleStrokeProfile(RoadLineKind.Solid);
+                var segment = CreateSegment(network, profile, 20f);
+                var before = CalculatePreviewStateHash(segment);
+
+                wearMask = CreateTestTexture("Hash Wear Mask");
+                lineTexture = CreateTestTexture("Hash Line Texture");
+                var detail = profile.boundaryLines[1].strokes[0].markingDetail;
+                detail.wearMask = wearMask;
+                detail.wearMaskStrength = 0.5f;
+                detail.wearMaskTiling = RoadLineTextureTiling.RepeatAlongV;
+                detail.wearMaskTileLengthMeters = 2f;
+                detail.invertWearMask = true;
+                detail.lineTexture = lineTexture;
+                detail.lineTextureStrength = 0.25f;
+                detail.lineTextureTileLengthMeters = 4f;
+                detail.lineTextureColorInfluence = 0.2f;
+                detail.smoothness = 0.2f;
+                detail.wornSmoothness = 0.04f;
+
+                var after = CalculatePreviewStateHash(segment);
+
+                Assert.That(after, Is.Not.EqualTo(before));
+            }
+            finally
+            {
+                Object.DestroyImmediate(networkObject);
+                Object.DestroyImmediate(wearMask);
+                Object.DestroyImmediate(lineTexture);
+            }
         }
 
         [Test]
@@ -499,6 +847,52 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             };
         }
 
+        private static void SetMaterialSmoothness(Material material, float value)
+        {
+            if (material.HasProperty("_Glossiness"))
+            {
+                material.SetFloat("_Glossiness", value);
+            }
+            if (material.HasProperty("_Smoothness"))
+            {
+                material.SetFloat("_Smoothness", value);
+            }
+        }
+
+        private static bool TryReadMaterialSmoothness(Material material, out float value)
+        {
+            if (material.HasProperty("_Glossiness"))
+            {
+                value = material.GetFloat("_Glossiness");
+                return true;
+            }
+            if (material.HasProperty("_Smoothness"))
+            {
+                value = material.GetFloat("_Smoothness");
+                return true;
+            }
+
+            value = 0f;
+            return false;
+        }
+
+        private static Texture2D CreateTestTexture(string name)
+        {
+            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false)
+            {
+                name = name,
+            };
+            texture.SetPixels(new[]
+            {
+                Color.black,
+                Color.white,
+                Color.gray,
+                Color.clear,
+            });
+            texture.Apply();
+            return texture;
+        }
+
         private static void AssertGeneratedLayer(GameObject root, IReadOnlyList<GameObject> generatedObjects, int expectedLayer)
         {
             Assert.That(root, Is.Not.Null);
@@ -540,6 +934,32 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
             }
 
             return Color.clear;
+        }
+
+        private static void AssertImageBasedDetailShaderSource(string shaderSource)
+        {
+            Assert.That(shaderSource, Does.Contain("_WearMask"));
+            Assert.That(shaderSource, Does.Contain("_WearMaskStrength"));
+            Assert.That(shaderSource, Does.Contain("_WearMaskTileLengthMeters"));
+            Assert.That(shaderSource, Does.Contain("_LineTexture"));
+            Assert.That(shaderSource, Does.Contain("_LineTextureStrength"));
+            Assert.That(shaderSource, Does.Contain("_LineTextureTileLengthMeters"));
+            Assert.That(shaderSource, Does.Contain("_WornSmoothness"));
+            Assert.That(shaderSource, Does.Contain("SampleWearMask"));
+            Assert.That(shaderSource, Does.Contain("ApplyLineTexture"));
+            Assert.That(shaderSource, Does.Contain("lerp(tintedDetail,"));
+            Assert.That(shaderSource, Does.Contain("return lerp(color, detailColor"));
+            Assert.That(shaderSource, Does.Contain("clip(_WearMaskClipThreshold - wear)"));
+            Assert.That(shaderSource, Does.Not.Contain("ComputeProceduralWear"));
+        }
+
+        private static int CalculatePreviewStateHash(RoadSegment segment)
+        {
+            var method = typeof(RoadNetworkPreviewScheduler).GetMethod(
+                "CalculateSegmentStateHash",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(method, Is.Not.Null);
+            return (int)method.Invoke(null, new object[] { segment });
         }
     }
 }

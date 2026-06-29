@@ -20,7 +20,10 @@ namespace MitarashiDango.RoadAssetGenerator
         private const string BuiltInDepthBiasedMarkingShaderName = "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedBuiltIn";
         private const string UrpDepthBiasedMarkingShaderName = "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedURP";
         private const float DefaultMarkingMetallic = 0f;
-        private const float DefaultMarkingSmoothness = 0.25f;
+        private const float DefaultMarkingSmoothness = RoadLineMarkingDetailSettings.DefaultSmoothness;
+        private const float DefaultMarkingWornSmoothness = RoadLineMarkingDetailSettings.DefaultWornSmoothness;
+        private const float DefaultMarkingTextureTileLengthMeters = RoadLineMarkingDetailSettings.DefaultTileLengthMeters;
+        private const float DefaultMarkingWearMaskClipThreshold = 0.72f;
         private static readonly Dictionary<int, int> GeneratedHierarchyUndoGroups = new Dictionary<int, int>();
         private static readonly HashSet<string> LoggedMarkingShaderFallbacks = new HashSet<string>();
 
@@ -585,15 +588,22 @@ namespace MitarashiDango.RoadAssetGenerator
         private static Material CreateMarkingMaterial(RoadMarkingMeshData meshData, RoadNetwork network)
         {
             var source = network != null ? network.markingMaterial : null;
+            var useDefaultMarkingMaterial = source == null;
             var material = source != null
                 ? new Material(source)
                 : new Material(FindDefaultMarkingShader());
             material.name = $"RoadMarking_{meshData.boundaryIndex:00}_{meshData.strokeIndex:00}";
-            if (source == null)
+            if (useDefaultMarkingMaterial)
             {
                 ConfigureDefaultMarkingMaterial(material);
             }
             ApplyMarkingColor(material, meshData.color);
+            ApplyMarkingDetail(
+                material,
+                meshData.markingDetail,
+                meshData.detailStartDistanceMeters,
+                meshData.detailEndDistanceMeters,
+                useDefaultMarkingMaterial);
             var targetQueue = (int)RenderQueue.Geometry + 20;
             if (material.renderQueue < targetQueue)
             {
@@ -680,6 +690,17 @@ namespace MitarashiDango.RoadAssetGenerator
             SetFloatIfPresent(material, "_ZWrite", 1f);
             SetFloatIfPresent(material, "_Cull", (float)CullMode.Back);
             SetFloatIfPresent(material, "_ReceiveShadows", 1f);
+            SetFloatIfPresent(material, "_WearMaskStrength", 0f);
+            SetFloatIfPresent(material, "_WearMaskTiling", 0f);
+            SetFloatIfPresent(material, "_WearMaskTileLengthMeters", DefaultMarkingTextureTileLengthMeters);
+            SetFloatIfPresent(material, "_WearMaskInvert", 0f);
+            SetFloatIfPresent(material, "_WearMaskClipThreshold", DefaultMarkingWearMaskClipThreshold);
+            SetFloatIfPresent(material, "_LineTextureStrength", 0f);
+            SetFloatIfPresent(material, "_LineTextureTileLengthMeters", DefaultMarkingTextureTileLengthMeters);
+            SetFloatIfPresent(material, "_LineTextureColorInfluence", 0f);
+            SetFloatIfPresent(material, "_MarkingStartDistanceMeters", 0f);
+            SetFloatIfPresent(material, "_MarkingLengthMeters", 1f);
+            SetFloatIfPresent(material, "_WornSmoothness", DefaultMarkingWornSmoothness);
         }
 
         private static void SetFloatIfPresent(Material material, string propertyName, float value)
@@ -687,6 +708,14 @@ namespace MitarashiDango.RoadAssetGenerator
             if (material.HasProperty(propertyName))
             {
                 material.SetFloat(propertyName, value);
+            }
+        }
+
+        private static void SetTextureIfPresent(Material material, string propertyName, Texture texture)
+        {
+            if (texture != null && material.HasProperty(propertyName))
+            {
+                material.SetTexture(propertyName, texture);
             }
         }
 
@@ -705,6 +734,98 @@ namespace MitarashiDango.RoadAssetGenerator
             {
                 material.SetColor("_Color", color);
             }
+        }
+
+        private static void ApplyMarkingDetail(
+            Material material,
+            RoadLineMarkingDetailSettings detail,
+            float startDistanceMeters,
+            float endDistanceMeters,
+            bool applySmoothnessDefaults)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            var markingLength = Mathf.Max(0.05f, endDistanceMeters - startDistanceMeters);
+            if (applySmoothnessDefaults || HasTextureBasedMarkingDetail(detail))
+            {
+                var smoothness = GetEffectiveSmoothness(detail);
+                SetFloatIfPresent(material, "_Glossiness", smoothness);
+                SetFloatIfPresent(material, "_Smoothness", smoothness);
+                SetFloatIfPresent(material, "_WornSmoothness", GetEffectiveWornSmoothness(detail));
+            }
+
+            SetTextureIfPresent(material, "_WearMask", detail != null ? detail.wearMask : null);
+            SetFloatIfPresent(material, "_WearMaskStrength", GetEffectiveWearMaskStrength(detail));
+            SetFloatIfPresent(material, "_WearMaskTiling", GetEffectiveWearMaskTiling(detail));
+            SetFloatIfPresent(material, "_WearMaskTileLengthMeters", GetEffectiveWearMaskTileLengthMeters(detail));
+            SetFloatIfPresent(material, "_WearMaskInvert", detail != null && detail.invertWearMask ? 1f : 0f);
+            SetFloatIfPresent(material, "_WearMaskClipThreshold", DefaultMarkingWearMaskClipThreshold);
+            SetTextureIfPresent(material, "_LineTexture", detail != null ? detail.lineTexture : null);
+            SetFloatIfPresent(material, "_LineTextureStrength", GetEffectiveLineTextureStrength(detail));
+            SetFloatIfPresent(material, "_LineTextureTileLengthMeters", GetEffectiveLineTextureTileLengthMeters(detail));
+            SetFloatIfPresent(material, "_LineTextureColorInfluence", GetEffectiveLineTextureColorInfluence(detail));
+            SetFloatIfPresent(material, "_MarkingStartDistanceMeters", startDistanceMeters);
+            SetFloatIfPresent(material, "_MarkingLengthMeters", markingLength);
+        }
+
+        private static bool HasTextureBasedMarkingDetail(RoadLineMarkingDetailSettings detail)
+        {
+            return detail != null && (detail.wearMask != null || detail.lineTexture != null);
+        }
+
+        private static float GetEffectiveSmoothness(RoadLineMarkingDetailSettings detail)
+        {
+            return detail != null
+                ? Mathf.Clamp01(detail.smoothness)
+                : DefaultMarkingSmoothness;
+        }
+
+        private static float GetEffectiveWornSmoothness(RoadLineMarkingDetailSettings detail)
+        {
+            return detail != null
+                ? Mathf.Clamp01(detail.wornSmoothness)
+                : DefaultMarkingWornSmoothness;
+        }
+
+        private static float GetEffectiveWearMaskStrength(RoadLineMarkingDetailSettings detail)
+        {
+            return detail != null && detail.wearMask != null
+                ? Mathf.Clamp01(detail.wearMaskStrength)
+                : 0f;
+        }
+
+        private static float GetEffectiveWearMaskTiling(RoadLineMarkingDetailSettings detail)
+        {
+            return detail != null && detail.wearMaskTiling == RoadLineTextureTiling.RepeatAlongV ? 1f : 0f;
+        }
+
+        private static float GetEffectiveWearMaskTileLengthMeters(RoadLineMarkingDetailSettings detail)
+        {
+            return Mathf.Max(
+                0.1f,
+                detail != null ? detail.wearMaskTileLengthMeters : DefaultMarkingTextureTileLengthMeters);
+        }
+
+        private static float GetEffectiveLineTextureStrength(RoadLineMarkingDetailSettings detail)
+        {
+            return detail != null && detail.lineTexture != null
+                ? Mathf.Clamp01(detail.lineTextureStrength)
+                : 0f;
+        }
+
+        private static float GetEffectiveLineTextureTileLengthMeters(RoadLineMarkingDetailSettings detail)
+        {
+            return Mathf.Max(
+                0.1f,
+                detail != null ? detail.lineTextureTileLengthMeters : DefaultMarkingTextureTileLengthMeters);
+        }
+
+        private static float GetEffectiveLineTextureColorInfluence(RoadLineMarkingDetailSettings detail)
+        {
+            return detail != null ? Mathf.Clamp01(detail.lineTextureColorInfluence) : 0f;
         }
 
         private static GameObject FindDirectChild(Transform parent, string childName)

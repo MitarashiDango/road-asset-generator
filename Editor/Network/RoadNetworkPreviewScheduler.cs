@@ -349,7 +349,29 @@ namespace MitarashiDango.RoadAssetGenerator
                 AddColorHash(stroke.color, ref hash);
                 AddFloatHash(stroke.dashLengthMeters, ref hash);
                 AddFloatHash(stroke.dashGapMeters, ref hash);
+                AddMarkingDetailHash(stroke.markingDetail, ref hash);
             }
+        }
+
+        private static void AddMarkingDetailHash(RoadLineMarkingDetailSettings detail, ref int hash)
+        {
+            if (detail == null)
+            {
+                hash = hash * 31;
+                return;
+            }
+
+            hash = hash * 31 + (detail.wearMask != null ? detail.wearMask.GetInstanceID() : 0);
+            AddFloatHash(detail.wearMaskStrength, ref hash);
+            hash = hash * 31 + (int)detail.wearMaskTiling;
+            AddFloatHash(detail.wearMaskTileLengthMeters, ref hash);
+            hash = hash * 31 + (detail.invertWearMask ? 1 : 0);
+            hash = hash * 31 + (detail.lineTexture != null ? detail.lineTexture.GetInstanceID() : 0);
+            AddFloatHash(detail.lineTextureStrength, ref hash);
+            AddFloatHash(detail.lineTextureTileLengthMeters, ref hash);
+            AddFloatHash(detail.lineTextureColorInfluence, ref hash);
+            AddFloatHash(detail.smoothness, ref hash);
+            AddFloatHash(detail.wornSmoothness, ref hash);
         }
 
         private static void AddVector3Hash(Vector3 value, ref int hash)

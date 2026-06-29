@@ -7,6 +7,19 @@ Shader "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedURP"
         [HideInInspector] _Color ("Legacy Color", Color) = (1,1,1,1)
         [HideInInspector] _Metallic ("Metallic", Range(0,1)) = 0
         [HideInInspector] _Smoothness ("Smoothness", Range(0,1)) = 0.25
+        [HideInInspector] _LineTexture ("Line Texture", 2D) = "white" {}
+        [HideInInspector] _LineTextureStrength ("Line Texture Strength", Range(0,1)) = 0
+        [HideInInspector] _LineTextureTileLengthMeters ("Line Texture Tile Length Meters", Float) = 10
+        [HideInInspector] _LineTextureColorInfluence ("Line Texture Color Influence", Range(0,1)) = 0
+        [HideInInspector] _WearMask ("Wear Mask", 2D) = "black" {}
+        [HideInInspector] _WearMaskStrength ("Wear Mask Strength", Range(0,1)) = 0
+        [HideInInspector] _WearMaskTiling ("Wear Mask Tiling", Float) = 0
+        [HideInInspector] _WearMaskTileLengthMeters ("Wear Mask Tile Length Meters", Float) = 10
+        [HideInInspector] _WearMaskInvert ("Invert Wear Mask", Float) = 0
+        [HideInInspector] _WearMaskClipThreshold ("Wear Mask Clip Threshold", Range(0,1)) = 0.72
+        [HideInInspector] _MarkingStartDistanceMeters ("Marking Start Distance Meters", Float) = 0
+        [HideInInspector] _MarkingLengthMeters ("Marking Length Meters", Float) = 1
+        [HideInInspector] _WornSmoothness ("Worn Smoothness", Range(0,1)) = 0.08
         [HideInInspector] _WorkflowMode ("Workflow Mode", Float) = 1
         [HideInInspector] _Surface ("Surface Type", Float) = 0
         [HideInInspector] _Blend ("Blend Mode", Float) = 0
@@ -66,12 +79,27 @@ Shader "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedURP"
 
             TEXTURE2D(_BaseMap);
             SAMPLER(sampler_BaseMap);
+            TEXTURE2D(_LineTexture);
+            SAMPLER(sampler_LineTexture);
+            TEXTURE2D(_WearMask);
+            SAMPLER(sampler_WearMask);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseMap_ST;
                 half4 _BaseColor;
                 half _Metallic;
                 half _Smoothness;
+                half _LineTextureStrength;
+                float _LineTextureTileLengthMeters;
+                half _LineTextureColorInfluence;
+                half _WearMaskStrength;
+                half _WearMaskTiling;
+                float _WearMaskTileLengthMeters;
+                half _WearMaskInvert;
+                half _WearMaskClipThreshold;
+                float _MarkingStartDistanceMeters;
+                float _MarkingLengthMeters;
+                half _WornSmoothness;
             CBUFFER_END
 
             struct Attributes
@@ -95,9 +123,46 @@ Shader "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedURP"
                 float4 shadowCoord : TEXCOORD4;
             #endif
                 half fogFactor : TEXCOORD5;
+                float2 markingUv : TEXCOORD6;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
+
+            float2 BuildLineTextureUv(float2 uv)
+            {
+                return float2(uv.x, uv.y / max(_LineTextureTileLengthMeters, 0.05));
+            }
+
+            float2 BuildWearMaskUv(float2 uv)
+            {
+                float stretchV = saturate((uv.y - _MarkingStartDistanceMeters) / max(_MarkingLengthMeters, 0.05));
+                float repeatV = uv.y / max(_WearMaskTileLengthMeters, 0.05);
+                return float2(uv.x, lerp(stretchV, repeatV, step(0.5, _WearMaskTiling)));
+            }
+
+            half SampleWearMask(float2 uv)
+            {
+                half mask = SAMPLE_TEXTURE2D(_WearMask, sampler_WearMask, BuildWearMaskUv(uv)).r;
+                mask = lerp(mask, 1.0h - mask, saturate(_WearMaskInvert));
+                return saturate(mask * _WearMaskStrength);
+            }
+
+            half3 ApplyLineTexture(half3 color, float2 uv)
+            {
+                half3 sampleColor = SAMPLE_TEXTURE2D(_LineTexture, sampler_LineTexture, BuildLineTextureUv(uv)).rgb;
+                half sampleLuminance = dot(sampleColor, half3(0.2126h, 0.7152h, 0.0722h));
+                half3 tintedDetail = color * sampleLuminance;
+                half3 detailColor = lerp(
+                    tintedDetail,
+                    sampleColor,
+                    saturate(_LineTextureColorInfluence));
+                return lerp(color, detailColor, saturate(_LineTextureStrength));
+            }
+
+            half3 ApplyWearMask(half3 color, half wear)
+            {
+                return color * lerp(1.0h, 0.35h, wear);
+            }
 
             Varyings LitPassVertex(Attributes input)
             {
@@ -113,6 +178,7 @@ Shader "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedURP"
                 output.positionWS = positionInput.positionWS;
                 output.normalWS = NormalizeNormalPerVertex(normalInput.normalWS);
                 output.uv = TRANSFORM_TEX(input.uv, _BaseMap);
+                output.markingUv = input.uv;
                 output.fogFactor = ComputeFogFactor(positionInput.positionCS.z);
                 OUTPUT_LIGHTMAP_UV(input.uv2, unity_LightmapST, output.staticLightmapUV);
                 OUTPUT_SH(output.normalWS, output.vertexSH);
@@ -146,11 +212,14 @@ Shader "MitarashiDango/RoadAssetGenerator/RoadMarkingDepthBiasedURP"
                 inputData.shadowMask = SAMPLE_SHADOWMASK(input.staticLightmapUV);
 
                 half4 baseColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv) * _BaseColor;
+                half wear = SampleWearMask(input.markingUv);
+                clip(_WearMaskClipThreshold - wear);
+
                 SurfaceData surfaceData = (SurfaceData)0;
-                surfaceData.albedo = baseColor.rgb;
+                surfaceData.albedo = ApplyWearMask(ApplyLineTexture(baseColor.rgb, input.markingUv), wear);
                 surfaceData.metallic = _Metallic;
                 surfaceData.specular = half3(0, 0, 0);
-                surfaceData.smoothness = _Smoothness;
+                surfaceData.smoothness = lerp(_Smoothness, _WornSmoothness, wear);
                 surfaceData.occlusion = 1;
                 surfaceData.emission = half3(0, 0, 0);
                 surfaceData.alpha = baseColor.a;

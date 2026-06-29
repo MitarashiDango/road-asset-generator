@@ -12,25 +12,34 @@ namespace MitarashiDango.RoadAssetGenerator
         public RoadMarkingMeshData(
             Mesh mesh,
             Color color,
+            RoadLineMarkingDetailSettings markingDetail,
             int boundaryIndex,
             int strokeIndex,
             float startDistanceMeters,
-            float endDistanceMeters)
+            float endDistanceMeters,
+            float detailStartDistanceMeters,
+            float detailEndDistanceMeters)
         {
             this.mesh = mesh;
             this.color = color;
+            this.markingDetail = markingDetail?.Clone() ?? new RoadLineMarkingDetailSettings();
             this.boundaryIndex = boundaryIndex;
             this.strokeIndex = strokeIndex;
             this.startDistanceMeters = startDistanceMeters;
             this.endDistanceMeters = endDistanceMeters;
+            this.detailStartDistanceMeters = detailStartDistanceMeters;
+            this.detailEndDistanceMeters = detailEndDistanceMeters;
         }
 
         public Mesh mesh { get; }
         public Color color { get; }
+        public RoadLineMarkingDetailSettings markingDetail { get; }
         public int boundaryIndex { get; }
         public int strokeIndex { get; }
         public float startDistanceMeters { get; }
         public float endDistanceMeters { get; }
+        public float detailStartDistanceMeters { get; }
+        public float detailEndDistanceMeters { get; }
     }
 
     /// <summary>RoadProfile の境界線定義から RoadSegment 用の区画線メッシュを構築する。</summary>
@@ -193,10 +202,13 @@ namespace MitarashiDango.RoadAssetGenerator
                             colors,
                             triangles,
                             stroke.color,
+                            stroke.markingDetail,
                             boundaryIndex,
                             strokeIndex,
                             chunkStart,
                             chunkEnd,
+                            0f,
+                            table.TotalLengthMeters,
                             ref meshIndex);
                         ClearMeshBuffers(vertices, normals, tangents, uvs, colors, triangles);
                         chunkStart = float.PositiveInfinity;
@@ -244,10 +256,13 @@ namespace MitarashiDango.RoadAssetGenerator
                 colors,
                 triangles,
                 stroke.color,
+                stroke.markingDetail,
                 boundaryIndex,
                 strokeIndex,
                 chunkStart,
                 chunkEnd,
+                0f,
+                table.TotalLengthMeters,
                 ref meshIndex);
         }
 
@@ -336,10 +351,13 @@ namespace MitarashiDango.RoadAssetGenerator
             List<Color> colors,
             List<int> triangles,
             Color color,
+            RoadLineMarkingDetailSettings markingDetail,
             int boundaryIndex,
             int strokeIndex,
             float startDistanceMeters,
             float endDistanceMeters,
+            float detailStartDistanceMeters,
+            float detailEndDistanceMeters,
             ref int meshIndex)
         {
             if (vertices.Count == 0 || triangles.Count == 0)
@@ -364,10 +382,13 @@ namespace MitarashiDango.RoadAssetGenerator
             results.Add(new RoadMarkingMeshData(
                 mesh,
                 color,
+                markingDetail,
                 boundaryIndex,
                 strokeIndex,
                 startDistanceMeters,
-                endDistanceMeters));
+                endDistanceMeters,
+                detailStartDistanceMeters,
+                detailEndDistanceMeters));
             meshIndex++;
         }
 

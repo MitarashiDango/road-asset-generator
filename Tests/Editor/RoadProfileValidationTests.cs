@@ -9,14 +9,54 @@ namespace MitarashiDango.RoadAssetGenerator.Tests
         [Test]
         public void ProfileCloneDoesNotShareMutableLists()
         {
-            var original = RoadProfile.CreateDefaultTwoLane();
-            var clone = original.Clone();
+            var wearMask = new Texture2D(1, 1) { name = "Clone Wear Mask" };
+            var lineTexture = new Texture2D(1, 1) { name = "Clone Line Texture" };
 
-            clone.lanes[0].widthMeters = 4.5f;
-            clone.boundaryLines[1].strokes[0].kind = RoadLineKind.Dashed;
+            try
+            {
+                var original = RoadProfile.CreateDefaultTwoLane();
+                original.boundaryLines[1].strokes[0].markingDetail = new RoadLineMarkingDetailSettings
+                {
+                    wearMask = wearMask,
+                    wearMaskStrength = 0.35f,
+                    wearMaskTiling = RoadLineTextureTiling.RepeatAlongV,
+                    wearMaskTileLengthMeters = 2.5f,
+                    invertWearMask = true,
+                    lineTexture = lineTexture,
+                    lineTextureStrength = 0.65f,
+                    lineTextureTileLengthMeters = 4.5f,
+                    lineTextureColorInfluence = 0.2f,
+                    smoothness = 0.4f,
+                    wornSmoothness = 0.06f,
+                };
+                var clone = original.Clone();
 
-            Assert.That(original.lanes[0].widthMeters, Is.EqualTo(3f).Within(0.001f));
-            Assert.That(original.boundaryLines[1].strokes[0].kind, Is.EqualTo(RoadLineKind.Solid));
+                clone.lanes[0].widthMeters = 4.5f;
+                clone.boundaryLines[1].strokes[0].kind = RoadLineKind.Dashed;
+                clone.boundaryLines[1].strokes[0].markingDetail.wearMaskStrength = 0.9f;
+
+                var originalDetail = original.boundaryLines[1].strokes[0].markingDetail;
+                var cloneDetail = clone.boundaryLines[1].strokes[0].markingDetail;
+                Assert.That(original.lanes[0].widthMeters, Is.EqualTo(3f).Within(0.001f));
+                Assert.That(original.boundaryLines[1].strokes[0].kind, Is.EqualTo(RoadLineKind.Solid));
+                Assert.That(originalDetail.wearMaskStrength, Is.EqualTo(0.35f).Within(0.001f));
+                Assert.That(cloneDetail, Is.Not.SameAs(originalDetail));
+                Assert.That(cloneDetail.wearMask, Is.SameAs(wearMask));
+                Assert.That(cloneDetail.wearMaskTiling, Is.EqualTo(RoadLineTextureTiling.RepeatAlongV));
+                Assert.That(cloneDetail.wearMaskTileLengthMeters, Is.EqualTo(2.5f).Within(0.001f));
+                Assert.That(cloneDetail.invertWearMask, Is.True);
+                Assert.That(cloneDetail.lineTexture, Is.SameAs(lineTexture));
+                Assert.That(cloneDetail.lineTextureStrength, Is.EqualTo(0.65f).Within(0.001f));
+                Assert.That(cloneDetail.lineTextureTileLengthMeters, Is.EqualTo(4.5f).Within(0.001f));
+                Assert.That(cloneDetail.lineTextureColorInfluence, Is.EqualTo(0.2f).Within(0.001f));
+                Assert.That(cloneDetail.smoothness, Is.EqualTo(0.4f).Within(0.001f));
+                Assert.That(cloneDetail.wornSmoothness, Is.EqualTo(0.06f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(wearMask);
+                Object.DestroyImmediate(lineTexture);
+            }
         }
 
         [Test]
